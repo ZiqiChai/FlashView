@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="icons/flashview.svg">icons/flashview.svg</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=FlashView
+Name[zh_CN]=FlashView 图片视频浏览器
+Comment=Fast Image & Video Viewer
+Comment[zh_CN]=快速图片和视频浏览器
+Exec=flashview %F
+Icon=flashview
+Terminal=false
+Type=Application
+Categories=Graphics;Viewer;Photography;Video;
+MimeType=image/jpeg;image/png;image/bmp;image/gif;image/webp;image/tiff;image/svg+xml;video/mp4;video/x-matroska;video/x-msvideo;video/quicktime;video/webm;
+Keywords=image;photo;viewer;video;picture;
+StartupNotify=true

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4a80e0"/>
+      <stop offset="100%" stop-color="#7c6ff7"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded background -->
+  <rect x="4" y="4" width="120" height="120" rx="24" ry="24" fill="url(#bg)"/>
+  <!-- Image frame -->
+  <rect x="22" y="30" width="84" height="62" rx="8" ry="8" fill="none" stroke="white" stroke-width="4" opacity="0.9"/>
+  <!-- Mountain landscape -->
+  <polygon points="30,82 52,52 68,68 80,56 98,82" fill="white" opacity="0.85"/>
+  <!-- Sun -->
+  <circle cx="86" cy="46" r="8" fill="#ffd54f" opacity="0.95"/>
+  <!-- Play triangle (video hint) -->
+  <polygon points="56,96 56,108 68,102" fill="white" opacity="0.7"/>
+</svg>

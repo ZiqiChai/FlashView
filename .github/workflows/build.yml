@@ -1,0 +1,59 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Ubuntu ${{ matrix.ubuntu }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ["22.04", "24.04", "26.04"]
+    container:
+      image: ubuntu:${{ matrix.ubuntu }}
+
+    steps:
+      - name: Install git (required by checkout)
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git ca-certificates
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: ./scripts/install-deps.sh -y
+
+      - name: Configure & build (Release)
+        run: ./scripts/build.sh
+
+      - name: Run regression tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Smoke test (offscreen)
+        run: |
+          # Launch the app headless for a few seconds; timeout exit code 124
+          # means it started and kept running without crashing.
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 5 ./build/flashview
+          code=$?
+          set -e
+          if [ "$code" -ne 124 ] && [ "$code" -ne 0 ]; then
+            echo "flashview exited abnormally with code $code"
+            exit 1
+          fi
+          echo "Smoke test passed."
+
+      - name: Test install (staged)
+        run: |
+          cmake --install build --prefix "$PWD/stage"
+          test -x stage/bin/flashview
+          test -f stage/share/applications/flashview.desktop
+          test -f stage/share/icons/hicolor/scalable/apps/flashview.svg
+          echo "Install layout OK."
