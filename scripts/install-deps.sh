@@ -56,6 +56,8 @@ PACKAGES+=(
 # Runtime multimedia backend (optional for building, needed to play videos)
 PACKAGES+=(
     libqt6multimedia6
+    libqt6svg6
+    qt6-image-formats-plugins
     gstreamer1.0-plugins-base
     gstreamer1.0-plugins-good
 )

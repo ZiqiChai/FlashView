@@ -1,15 +1,24 @@
+#include "FlashViewStyle.h"
 #include "ImageViewer.h"
 #include "MainWindow.h"
 #include "MediaUtils.h"
+#include "ThemeManager.h"
 #include "ThumbnailBar.h"
 
+#include <QApplication>
+#include <QDir>
 #include <QFile>
 #include <QImage>
 #include <QListView>
+#include <QMenu>
+#include <QMenuBar>
+#include <QPainter>
 #include <QSettings>
 #include <QStandardItemModel>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QToolBar>
+#include <QToolButton>
 #include <QWheelEvent>
 
 class FlashViewTests : public QObject
@@ -23,6 +32,8 @@ private slots:
     void wheelZoomSettingWorksInsideTheViewer();
     void thumbnailsLoadProgressively();
     void mainWindowTracksFolderChanges();
+    void toolbarActionsHaveClearVisualSemantics();
+    void generateDocumentationScreenshots();
 
 private:
     QTemporaryDir m_settingsDirectory;
@@ -36,6 +47,7 @@ void FlashViewTests::initTestCase()
         QSettings::IniFormat, QSettings::UserScope, m_settingsDirectory.path());
     QCoreApplication::setOrganizationName(QStringLiteral("FlashViewTests"));
     QCoreApplication::setApplicationName(QStringLiteral("FlashViewTests"));
+    qApp->setStyle(new FlashViewStyle);
 }
 
 void FlashViewTests::recognizesFormatsAndUsesNaturalOrder()
@@ -169,6 +181,132 @@ void FlashViewTests::mainWindowTracksFolderChanges()
     QVERIFY(QFile::remove(image10));
     QTRY_VERIFY_WITH_TIMEOUT(!viewer->hasImage(), 3000);
     QCOMPARE(thumbnailBar->currentIndex(), -1);
+}
+
+void FlashViewTests::toolbarActionsHaveClearVisualSemantics()
+{
+    MainWindow window;
+    window.show();
+    QTest::qWait(30);
+
+    auto *toolbar = window.findChild<QToolBar *>(QStringLiteral("MainToolBar"));
+    QVERIFY(toolbar);
+    const int toolbarHeight = toolbar->height();
+    QVERIFY2(toolbarHeight <= 46,
+             qPrintable(QStringLiteral("The toolbar height is %1 px").arg(toolbarHeight)));
+    for (QToolButton *button : toolbar->findChildren<QToolButton *>()) {
+        if (!button->isVisible())
+            continue;
+        const int topGap = button->geometry().top();
+        const int bottomGap = toolbar->height() - button->geometry().bottom() - 1;
+        QVERIFY2(qAbs(topGap - bottomGap) <= 1,
+                 qPrintable(QStringLiteral("Toolbar gaps are %1 px / %2 px")
+                                .arg(topGap).arg(bottomGap)));
+    }
+
+    auto actionWithShortcut = [&window](const QKeySequence &shortcut) {
+        for (QAction *action : window.findChildren<QAction *>()) {
+            if (action->shortcut() == shortcut)
+                return action;
+        }
+        return static_cast<QAction *>(nullptr);
+    };
+
+    QAction *openFile = actionWithShortcut(QKeySequence::Open);
+    QAction *openFolder = actionWithShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+O")));
+    QAction *fitWindow = actionWithShortcut(QKeySequence(Qt::Key_F));
+    QAction *fullscreen = actionWithShortcut(QKeySequence(Qt::Key_F11));
+    QAction *thumbnails = actionWithShortcut(QKeySequence(Qt::Key_T));
+    QVERIFY(openFile);
+    QVERIFY(openFolder);
+    QVERIFY(fitWindow);
+    QVERIFY(fullscreen);
+    QVERIFY(thumbnails);
+
+    QVERIFY(!openFile->icon().isNull());
+    QVERIFY(!openFolder->icon().isNull());
+    QVERIFY(openFile->icon().cacheKey() != openFolder->icon().cacheKey());
+    QVERIFY(fitWindow->icon().cacheKey() != fullscreen->icon().cacheKey());
+    QVERIFY(!thumbnails->isCheckable());
+}
+
+void FlashViewTests::generateDocumentationScreenshots()
+{
+    const QString outputDirectory =
+        qEnvironmentVariable("FLASHVIEW_SCREENSHOT_DIR");
+    if (outputDirectory.isEmpty())
+        QSKIP("Set FLASHVIEW_SCREENSHOT_DIR");
+
+    QVERIFY(QDir().mkpath(outputDirectory));
+
+    // Generate a deterministic PNG solely as content for the real UI capture.
+    // This avoids relying on optional image plugins in headless CI.
+    const QString mediaPath =
+        m_settingsDirectory.filePath(QStringLiteral("mountain-sunset.png"));
+    QImage sample(1600, 1000, QImage::Format_RGB32);
+    QPainter samplePainter(&sample);
+    QLinearGradient sky(0, 0, 0, sample.height());
+    sky.setColorAt(0.0, QColor(35, 48, 92));
+    sky.setColorAt(0.55, QColor(113, 105, 166));
+    sky.setColorAt(1.0, QColor(238, 165, 127));
+    samplePainter.fillRect(sample.rect(), sky);
+    samplePainter.setPen(Qt::NoPen);
+    samplePainter.setBrush(QColor(255, 219, 145, 220));
+    samplePainter.drawEllipse(QPointF(1260, 245), 105, 105);
+    samplePainter.setBrush(QColor(68, 67, 108));
+    samplePainter.drawPolygon(QPolygonF({
+        QPointF(0, 760), QPointF(250, 480), QPointF(465, 680),
+        QPointF(720, 370), QPointF(1040, 700), QPointF(1280, 455),
+        QPointF(1600, 735), QPointF(1600, 1000), QPointF(0, 1000)
+    }));
+    samplePainter.setBrush(QColor(35, 43, 73));
+    samplePainter.drawPolygon(QPolygonF({
+        QPointF(0, 835), QPointF(320, 650), QPointF(580, 790),
+        QPointF(900, 560), QPointF(1210, 810), QPointF(1450, 655),
+        QPointF(1600, 760), QPointF(1600, 1000), QPointF(0, 1000)
+    }));
+    samplePainter.setBrush(QColor(20, 29, 50));
+    samplePainter.drawRect(0, 865, 1600, 135);
+    samplePainter.end();
+    QVERIFY(sample.save(mediaPath, "PNG"));
+
+    auto captureWindow = [&](ThemeManager::Theme theme, const QString &fileName,
+                             bool captureViewMenu) {
+        ThemeManager::instance().setTheme(theme);
+        MainWindow window;
+        window.resize(1200, 800);
+        window.openFile(mediaPath);
+        window.show();
+        QTest::qWait(300);
+        QApplication::processEvents();
+
+        QPixmap screenshot = window.grab();
+        if (captureViewMenu) {
+            QAction *viewAction = window.menuBar()->actions().at(1);
+            QMenu *viewMenu = viewAction->menu();
+            viewMenu->popup(window.mapToGlobal(
+                QPoint(window.menuBar()->actionGeometry(viewAction).left(),
+                       window.menuBar()->height())));
+            QTest::qWait(80);
+            const QPixmap menu = viewMenu->grab();
+            viewMenu->hide();
+
+            QPainter painter(&screenshot);
+            painter.drawPixmap(
+                window.menuBar()->actionGeometry(viewAction).left(),
+                window.menuBar()->height(), menu);
+        }
+
+        QVERIFY(screenshot.save(
+            QDir(outputDirectory).filePath(fileName), "PNG"));
+    };
+
+    captureWindow(ThemeManager::Dark,
+                  QStringLiteral("flashview-dark.png"), false);
+    captureWindow(ThemeManager::Light,
+                  QStringLiteral("flashview-light.png"), false);
+    captureWindow(ThemeManager::Dark,
+                  QStringLiteral("flashview-view-menu.png"), true);
 }
 
 QTEST_MAIN(FlashViewTests)

@@ -47,6 +47,7 @@ set(HEADERS
     src/SettingsDialog.h
     src/ThemeManager.h
     src/MediaUtils.h
+    src/FlashViewStyle.h
 )
 
 qt_add_executable(flashview
@@ -95,6 +96,7 @@ if(BUILD_TESTING)
         src/ThemeManager.cpp
         src/ThemeManager.h
         src/MediaUtils.h
+        src/FlashViewStyle.h
     )
     target_include_directories(flashview_tests PRIVATE src)
     target_link_libraries(flashview_tests PRIVATE

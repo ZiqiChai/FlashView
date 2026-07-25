@@ -28,11 +28,53 @@
 #include <QPixmapCache>
 #include <QTimer>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QFont>
-#include <QFontMetrics>
 #include <QIcon>
 #include <QtConcurrent>
+
+#include <cmath>
+
+namespace {
+
+class CompactToolBar final : public QToolBar
+{
+public:
+    using QToolBar::QToolBar;
+
+protected:
+    bool event(QEvent *event) override
+    {
+        const bool handled = QToolBar::event(event);
+        if (event->type() == QEvent::LayoutRequest
+            || event->type() == QEvent::Resize
+            || event->type() == QEvent::Show) {
+            centerItemsVertically();
+        }
+        return handled;
+    }
+
+private:
+    void centerItemsVertically()
+    {
+        const auto children =
+            findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly);
+        for (QWidget *child : children) {
+            const bool isButton = qobject_cast<QToolButton *>(child);
+            const bool isSeparator =
+                QByteArray(child->metaObject()->className()).contains("Separator");
+            if ((!isButton && !isSeparator) || !child->isVisible())
+                continue;
+
+            QRect geometry = child->geometry();
+            geometry.moveTop((height() - geometry.height()) / 2);
+            child->setGeometry(geometry);
+        }
+    }
+};
+
+} // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -169,8 +211,6 @@ void MainWindow::setupActions()
     connect(m_fullscreenAction, &QAction::triggered, this, &MainWindow::onToggleFullscreen);
 
     m_thumbAction = new QAction(tr("Thumbnail &Bar"), this);
-    m_thumbAction->setCheckable(true);
-    m_thumbAction->setChecked(true);
     m_thumbAction->setShortcut(Qt::Key_T);
     connect(m_thumbAction, &QAction::triggered, this, &MainWindow::onToggleThumbnails);
 
@@ -290,47 +330,61 @@ void MainWindow::setupMenuBar()
 
 void MainWindow::setupToolBar()
 {
-    QToolBar *tb = addToolBar(tr("Main"));
+    auto *tb = new CompactToolBar(tr("Main"), this);
+    addToolBar(tb);
     m_mainToolBar = tb;
     tb->setObjectName("MainToolBar");
     tb->setMovable(false);
-    tb->setIconSize(QSize(28, 28));
+    tb->setIconSize(QSize(24, 24));
+    tb->setFixedHeight(40);
     tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
     m_toolGlyphs.clear();
-    auto makeBtn = [&](QAction *a, const QString &glyph) {
-        // Keep the action's descriptive text intact: menus and tooltips depend
-        // on it. Render the toolbar symbol as a themed icon rather than
-        // overwriting the text, which previously leaked glyphs into menu labels
-        // (setupMenuBar() re-runs after the toolbar during startup).
-        QString name = a->text();
-        name.remove('&');
-        const QString sc = a->shortcut().toString(QKeySequence::NativeText);
-        a->setToolTip(sc.isEmpty() ? name : QStringLiteral("%1  (%2)").arg(name, sc));
-        m_toolGlyphs.append({a, glyph});
-        tb->addAction(a);
+    auto registerIcon = [this](QAction *action, const QString &name) {
+        m_toolGlyphs.append({action, name});
     };
 
-    makeBtn(m_openFileAction, "\xf0\x9f\x93\x82");  // 📂
-    makeBtn(m_prevAction, "\xe2\x97\x80");          // ◀
-    makeBtn(m_nextAction, "\xe2\x96\xb6");          // ▶
+    // Every action uses the same 24-unit stroke icon system. Actions that only
+    // appear in menus are registered too, keeping dropdowns visually coherent.
+    registerIcon(m_openFileAction, QStringLiteral("file"));
+    registerIcon(m_openDirAction, QStringLiteral("folder"));
+    registerIcon(m_exitAction, QStringLiteral("exit"));
+    registerIcon(m_prevAction, QStringLiteral("previous"));
+    registerIcon(m_nextAction, QStringLiteral("next"));
+    registerIcon(m_zoomInAction, QStringLiteral("zoom-in"));
+    registerIcon(m_zoomOutAction, QStringLiteral("zoom-out"));
+    registerIcon(m_fitAction, QStringLiteral("fit"));
+    registerIcon(m_actualSizeAction, QStringLiteral("actual"));
+    registerIcon(m_rotateLeftAction, QStringLiteral("rotate-left"));
+    registerIcon(m_rotateRightAction, QStringLiteral("rotate-right"));
+    registerIcon(m_fullscreenAction, QStringLiteral("fullscreen"));
+    registerIcon(m_thumbAction, QStringLiteral("thumbnails"));
+    registerIcon(m_settingsAction, QStringLiteral("settings"));
+
+    tb->addAction(m_openFileAction);
+    tb->addAction(m_openDirAction);
     tb->addSeparator();
-    makeBtn(m_zoomInAction, "\xf0\x9f\x94\x8d+");  // 🔍+
-    makeBtn(m_zoomOutAction, "\xf0\x9f\x94\x8d\xe2\x88\x92"); // 🔍−
-    makeBtn(m_fitAction, "\xe2\x8a\x9e");          // ⊞
+    tb->addAction(m_prevAction);
+    tb->addAction(m_nextAction);
     tb->addSeparator();
-    makeBtn(m_rotateLeftAction, "\xe2\x86\xba");    // ↺
-    makeBtn(m_rotateRightAction, "\xe2\x86\xbb");   // ↻
+    tb->addAction(m_zoomInAction);
+    tb->addAction(m_zoomOutAction);
+    tb->addAction(m_fitAction);
     tb->addSeparator();
-    makeBtn(m_fullscreenAction, "\xe2\x9b\xb6");    // ⛶
-    makeBtn(m_thumbAction, "\xe2\x96\xa6");         // ▦
+    tb->addAction(m_rotateLeftAction);
+    tb->addAction(m_rotateRightAction);
+    tb->addSeparator();
+    tb->addAction(m_fullscreenAction);
+    tb->addAction(m_thumbAction);
+
+    refreshActionTooltips();
 }
 
-QIcon MainWindow::glyphIcon(const QString &glyph, const QColor &color) const
+QIcon MainWindow::glyphIcon(const QString &name, const QColor &color) const
 {
-    // Render at the device pixel ratio so glyphs stay crisp on HiDPI screens,
-    // and auto-fit the font so multi-character glyphs never get clipped.
-    const int logical = 28; // must match the toolbar icon size
+    // All icons share a 24-unit grid, 1.8-unit rounded stroke and a common
+    // optical box. This keeps their perceived size stable in toolbars and menus.
+    const int logical = 24;
     const qreal dpr = devicePixelRatioF();
     QPixmap pm(qRound(logical * dpr), qRound(logical * dpr));
     pm.setDevicePixelRatio(dpr);
@@ -339,15 +393,107 @@ QIcon MainWindow::glyphIcon(const QString &glyph, const QColor &color) const
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing);
     p.setRenderHint(QPainter::TextAntialiasing);
-    QFont f = p.font();
-    int px = qRound(logical * 0.78);
-    f.setPixelSize(px);
-    while (px > 8 && QFontMetrics(f).horizontalAdvance(glyph) > logical - 2) {
-        f.setPixelSize(--px);
+    QPen pen(color, 1.75, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    p.setPen(pen);
+    p.setBrush(Qt::NoBrush);
+
+    if (name == QStringLiteral("file")) {
+        QPainterPath page;
+        page.moveTo(6, 2.5);
+        page.lineTo(14.5, 2.5);
+        page.lineTo(19.5, 7.5);
+        page.lineTo(19.5, 21.5);
+        page.lineTo(6, 21.5);
+        page.closeSubpath();
+        p.drawPath(page);
+        p.drawLine(QPointF(14.5, 2.5), QPointF(14.5, 7.5));
+        p.drawLine(QPointF(14.5, 7.5), QPointF(19.5, 7.5));
+        p.drawLine(QPointF(9, 12), QPointF(16.5, 12));
+        p.drawLine(QPointF(9, 16), QPointF(16.5, 16));
+    } else if (name == QStringLiteral("folder")) {
+        QPainterPath folder;
+        folder.moveTo(2.5, 7);
+        folder.lineTo(9.5, 7);
+        folder.lineTo(12, 9.5);
+        folder.lineTo(21.5, 9.5);
+        folder.lineTo(20, 20);
+        folder.lineTo(2.5, 20);
+        folder.closeSubpath();
+        p.drawPath(folder);
+        p.drawLine(QPointF(2.8, 9.5), QPointF(20.8, 9.5));
+    } else if (name == QStringLiteral("previous")
+               || name == QStringLiteral("next")) {
+        const bool previous = name == QStringLiteral("previous");
+        QPainterPath chevron;
+        chevron.moveTo(previous ? 15.5 : 8.5, 5);
+        chevron.lineTo(previous ? 8.5 : 15.5, 12);
+        chevron.lineTo(previous ? 15.5 : 8.5, 19);
+        p.drawPath(chevron);
+    } else if (name == QStringLiteral("zoom-in")
+               || name == QStringLiteral("zoom-out")) {
+        p.drawEllipse(QRectF(3, 3, 13.5, 13.5));
+        p.drawLine(QPointF(15.2, 15.2), QPointF(21, 21));
+        p.drawLine(QPointF(7, 9.75), QPointF(12.5, 9.75));
+        if (name == QStringLiteral("zoom-in"))
+            p.drawLine(QPointF(9.75, 7), QPointF(9.75, 12.5));
+    } else if (name == QStringLiteral("fit")) {
+        // Nested frames read as media contained by the available window,
+        // while staying clearly distinct from fullscreen's open corners.
+        p.drawRoundedRect(QRectF(2.5, 4.5, 19, 15), 1.5, 1.5);
+        p.drawRoundedRect(QRectF(6.5, 7.5, 11, 9), 1, 1);
+    } else if (name == QStringLiteral("actual")) {
+        p.drawRoundedRect(QRectF(3, 3, 18, 18), 2, 2);
+        QFont font = p.font();
+        font.setPixelSize(8);
+        font.setWeight(QFont::DemiBold);
+        p.setFont(font);
+        p.drawText(QRectF(4, 4, 16, 16), Qt::AlignCenter, QStringLiteral("1:1"));
+    } else if (name == QStringLiteral("rotate-left")
+               || name == QStringLiteral("rotate-right")) {
+        const bool left = name == QStringLiteral("rotate-left");
+        QPainterPath arc;
+        arc.moveTo(left ? 5 : 19, 8);
+        arc.cubicTo(left ? 8 : 16, 3, left ? 16 : 8, 3, left ? 19 : 5, 9);
+        arc.cubicTo(left ? 22 : 2, 15, left ? 18 : 6, 20, 12, 20);
+        p.drawPath(arc);
+        QPainterPath arrow;
+        arrow.moveTo(left ? 5 : 19, 8);
+        arrow.lineTo(left ? 5.5 : 18.5, 3.5);
+        arrow.moveTo(left ? 5 : 19, 8);
+        arrow.lineTo(left ? 9.5 : 14.5, 7.5);
+        p.drawPath(arrow);
+    } else if (name == QStringLiteral("fullscreen")) {
+        p.drawLine(QPointF(4, 9), QPointF(4, 4));
+        p.drawLine(QPointF(4, 4), QPointF(9, 4));
+        p.drawLine(QPointF(15, 4), QPointF(20, 4));
+        p.drawLine(QPointF(20, 4), QPointF(20, 9));
+        p.drawLine(QPointF(20, 15), QPointF(20, 20));
+        p.drawLine(QPointF(20, 20), QPointF(15, 20));
+        p.drawLine(QPointF(9, 20), QPointF(4, 20));
+        p.drawLine(QPointF(4, 20), QPointF(4, 15));
+    } else if (name == QStringLiteral("thumbnails")) {
+        p.drawRoundedRect(QRectF(2.5, 6, 19, 12), 1.5, 1.5);
+        p.drawLine(QPointF(8.8, 6), QPointF(8.8, 18));
+        p.drawLine(QPointF(15.2, 6), QPointF(15.2, 18));
+    } else if (name == QStringLiteral("exit")) {
+        p.drawLine(QPointF(10, 3), QPointF(4, 3));
+        p.drawLine(QPointF(4, 3), QPointF(4, 21));
+        p.drawLine(QPointF(4, 21), QPointF(10, 21));
+        p.drawLine(QPointF(8, 12), QPointF(21, 12));
+        p.drawLine(QPointF(17, 8), QPointF(21, 12));
+        p.drawLine(QPointF(21, 12), QPointF(17, 16));
+    } else if (name == QStringLiteral("settings")) {
+        p.drawEllipse(QRectF(8.5, 8.5, 7, 7));
+        p.drawEllipse(QRectF(4.5, 4.5, 15, 15));
+        constexpr double pi = 3.14159265358979323846;
+        for (int i = 0; i < 8; ++i) {
+            const double angle = i * pi / 4.0;
+            p.drawLine(QPointF(12 + std::cos(angle) * 7.5,
+                               12 + std::sin(angle) * 7.5),
+                       QPointF(12 + std::cos(angle) * 10,
+                               12 + std::sin(angle) * 10));
+        }
     }
-    p.setFont(f);
-    p.setPen(color);
-    p.drawText(QRect(0, 0, logical, logical), Qt::AlignCenter, glyph);
     p.end();
     return QIcon(pm);
 }
@@ -527,7 +673,6 @@ void MainWindow::onSettings()
         // Thumbnails
         m_thumbnailsVisible = dlg.thumbnailsVisible();
         m_thumbnailBar->setVisible(m_thumbnailsVisible);
-        m_thumbAction->setChecked(m_thumbnailsVisible);
 
         // Wheel zoom mode
         m_wheelZoomMode = dlg.wheelZoomEnabled();
@@ -583,7 +728,6 @@ void MainWindow::onToggleThumbnails()
 {
     m_thumbnailsVisible = !m_thumbnailsVisible;
     m_thumbnailBar->setVisible(m_thumbnailsVisible);
-    m_thumbAction->setChecked(m_thumbnailsVisible);
     saveSettings();
 }
 
@@ -899,7 +1043,6 @@ void MainWindow::loadSettings()
     m_imageViewer->setWheelZoomEnabled(m_wheelZoomMode);
 
     m_thumbnailBar->setVisible(m_thumbnailsVisible);
-    m_thumbAction->setChecked(m_thumbnailsVisible);
 
     // Shortcuts from settings
     m_nextAction->setShortcut(s.value("keyNext", QKeySequence(Qt::Key_Right)).value<QKeySequence>());

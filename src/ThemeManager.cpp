@@ -74,14 +74,14 @@ QString ThemeManager::themeStyleSheet() const
                 padding: 6px 4px;
             }
             QMenu::item {
-                padding: 7px 32px 7px 24px;
+                padding: 6px 28px 6px 12px;
                 border-radius: 6px;
                 margin: 1px 2px;
             }
             QMenu::item:selected { background-color: #2e2e48; color: #fff; }
             QMenu::item:disabled { color: #555568; }
             QMenu::separator { height: 1px; background: #2a2a40; margin: 4px 12px; }
-            QMenu::indicator { width: 14px; height: 14px; margin-left: 8px; }
+            QMenu::indicator { width: 16px; height: 16px; margin-left: 6px; }
             QMenu::indicator:checked { image: none; background: #4a80e0; border: 2px solid #4a80e0; border-radius: 3px; }
 
             /* ── Toolbar ── */
@@ -89,24 +89,24 @@ QString ThemeManager::themeStyleSheet() const
                 background-color: #1c1c28;
                 border: none;
                 border-bottom: 1px solid #2a2a3c;
-                spacing: 6px;
-                padding: 5px 10px;
+                spacing: 4px;
+                padding: 2px 10px;
             }
             QToolButton {
                 background: transparent;
                 color: #b0b0c8;
                 border: none;
-                border-radius: 9px;
-                padding: 6px;
-                min-width: 42px;
-                min-height: 42px;
+                border-radius: 7px;
+                padding: 2px;
+                min-width: 34px;
+                min-height: 32px;
             }
             QToolButton:hover   { background-color: #2a2a40; color: #e8e8f4; }
             QToolButton:pressed { background-color: #4a80e0; color: #fff; }
             QToolButton:checked { background-color: #2a3a58; color: #6aa0f0; }
             QToolBar::separator {
                 width: 1px; background: #2a2a3c;
-                margin: 10px 8px;
+                margin: 4px 6px;
             }
 
             /* ── Status Bar ── */
@@ -296,14 +296,14 @@ QString ThemeManager::themeStyleSheet() const
                 padding: 6px 4px;
             }
             QMenu::item {
-                padding: 7px 32px 7px 24px;
+                padding: 6px 28px 6px 12px;
                 border-radius: 6px;
                 margin: 1px 2px;
             }
             QMenu::item:selected { background-color: #eef2ff; color: #1f1f2e; }
             QMenu::item:disabled { color: #b8b8c8; }
             QMenu::separator { height: 1px; background: #eaeaf0; margin: 4px 12px; }
-            QMenu::indicator { width: 14px; height: 14px; margin-left: 8px; }
+            QMenu::indicator { width: 16px; height: 16px; margin-left: 6px; }
             QMenu::indicator:checked { image: none; background: #4a80e0; border: 2px solid #4a80e0; border-radius: 3px; }
 
             /* ── Toolbar ── */
@@ -311,24 +311,24 @@ QString ThemeManager::themeStyleSheet() const
                 background-color: #ffffff;
                 border: none;
                 border-bottom: 1px solid #eaeaf0;
-                spacing: 6px;
-                padding: 5px 10px;
+                spacing: 4px;
+                padding: 2px 10px;
             }
             QToolButton {
                 background: transparent;
                 color: #6a6a80;
                 border: none;
-                border-radius: 9px;
-                padding: 6px;
-                min-width: 42px;
-                min-height: 42px;
+                border-radius: 7px;
+                padding: 2px;
+                min-width: 34px;
+                min-height: 32px;
             }
             QToolButton:hover   { background-color: #f0f0f6; color: #1f1f2e; }
             QToolButton:pressed { background-color: #4a80e0; color: #fff; }
             QToolButton:checked { background-color: #e8eeff; color: #4a80e0; }
             QToolBar::separator {
                 width: 1px; background: #eaeaf0;
-                margin: 10px 8px;
+                margin: 4px 6px;
             }
 
             /* ── Status Bar ── */

@@ -1,14 +1,16 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QIcon>
-#include <QTranslator>
 #include <QLocale>
+#include <QTranslator>
+#include "FlashViewStyle.h"
 #include "MainWindow.h"
 #include "ThemeManager.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    app.setStyle(new FlashViewStyle);
     app.setApplicationName("FlashView");
     app.setOrganizationName("FlashView");
     app.setApplicationVersion("1.0.0");

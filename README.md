@@ -1,11 +1,27 @@
 # FlashView
 
+[English](README.md) | [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
+
 A fast, lightweight image & video viewer for Linux, built with Qt 6.
 
 FlashView is designed for flipping through large folders of pictures with zero
 friction: instant paging with neighbour preloading, smooth zoom/fade
 animations, a filmstrip thumbnail bar, dark/light themes and full
 keyboard/mouse-wheel navigation.
+
+## Screenshots
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="screenshots/flashview-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="screenshots/flashview-light.png">
+    <img src="screenshots/flashview-dark.png" alt="FlashView main window" width="900">
+  </picture>
+</p>
+
+<p align="center">
+  <img src="screenshots/flashview-view-menu.png" alt="FlashView view menu and unified icon set" width="900">
+</p>
 
 ## Features
 
@@ -23,6 +39,7 @@ keyboard/mouse-wheel navigation.
 - Clear empty/error states; stale images and background video audio are never
   left behind when media fails or the active folder changes
 - Video playback position, volume and mute controls with remembered volume
+- Consistent vector-style toolbar/menu icons with balanced HiDPI proportions
 - Dark / light themes, English & Chinese UI
 
 ## Keyboard & mouse
@@ -48,6 +65,7 @@ keyboard/mouse-wheel navigation.
 - CMake ≥ 3.16, a C++17 compiler
 - Qt 6: Core, Gui, Widgets, Concurrent, Multimedia, MultimediaWidgets,
   LinguistTools and Test
+- Qt SVG and image-format runtime plugins
 - GStreamer plugins (runtime, for video playback)
 
 On Debian/Ubuntu (22.04 / 24.04 / 26.04) everything can be installed with:
@@ -72,6 +90,14 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ./build/flashview [file_or_directory]
+```
+
+To regenerate the documentation screenshots from the real Qt UI:
+
+```bash
+QT_QPA_PLATFORM=offscreen \
+FLASHVIEW_SCREENSHOT_DIR="$PWD/screenshots" \
+./build/flashview_tests generateDocumentationScreenshots
 ```
 
 ## Installing
@@ -99,9 +125,11 @@ src/            C++ sources (MainWindow, ImageViewer, VideoPlayer,
                 ThumbnailBar, ThemeManager, SettingsDialog)
 i18n/           Qt Linguist translations (en, zh)
 resources/      Icons and Qt resource files
+screenshots/    Reproducible dark/light UI captures
 scripts/        Dependency installer and build script
 tests/          Qt Test regression suite
 .github/        CI workflows
+CHANGELOG.md    User-visible change history
 ```
 
 ## License
