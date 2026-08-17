@@ -228,7 +228,7 @@ void ThumbnailBar::generateThumbnails()
         m_model->appendRow(item);
 
         const QString absolutePath = QDir(m_dirPath).absoluteFilePath(fileName);
-        imagePaths.append(MediaUtils::isImageFile(fileName) ? absolutePath : QString());
+        imagePaths.append(MediaUtils::isImageFile(absolutePath) ? absolutePath : QString());
     }
 
     // Decode thumbnails away from the GUI thread. Results are applied one by

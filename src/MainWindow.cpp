@@ -145,6 +145,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     resize(1200, 800);
     setWindowTitle("FlashView");
     updateActions();
+    QTimer::singleShot(0, this, &MainWindow::showRuntimeSupportWarning);
 }
 
 void MainWindow::setupActions()
@@ -545,7 +546,7 @@ void MainWindow::openFile(const QString &filePath)
         m_statusBar->showMessage(tr("File not found: %1").arg(filePath), 5000);
         return;
     }
-    if (!MediaUtils::isSupportedFile(fi.fileName())) {
+    if (!MediaUtils::isSupportedFile(fi.absoluteFilePath())) {
         m_statusBar->showMessage(tr("Unsupported media format: %1").arg(fi.suffix()), 5000);
         return;
     }
@@ -827,7 +828,7 @@ void MainWindow::updateFileList()
     m_fileList.clear();
     m_fileList.reserve(entries.size());
     for (const QString &entry : entries) {
-        if (MediaUtils::isSupportedFile(entry))
+        if (MediaUtils::isSupportedFile(m_currentDir.absoluteFilePath(entry)))
             m_fileList.append(entry);
     }
     MediaUtils::naturalSort(m_fileList);
@@ -1227,7 +1228,8 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event)
         return;
     for (const QUrl &url : event->mimeData()->urls()) {
         const QFileInfo info(url.toLocalFile());
-        if (info.isDir() || (info.isFile() && MediaUtils::isSupportedFile(info.fileName()))) {
+        if (info.isDir()
+            || (info.isFile() && MediaUtils::isSupportedFile(info.absoluteFilePath()))) {
             event->acceptProposedAction();
             return;
         }
@@ -1249,12 +1251,25 @@ void MainWindow::dropEvent(QDropEvent *event)
 
 bool MainWindow::isVideoFile(const QString &fileName) const
 {
-    return MediaUtils::isVideoFile(fileName);
+    const QFileInfo info(fileName);
+    return MediaUtils::isVideoFile(info.isAbsolute()
+        ? fileName : m_currentDir.absoluteFilePath(fileName));
 }
 
 QStringList MainWindow::supportedExtensions() const
 {
     return MediaUtils::supportedExtensions();
+}
+
+void MainWindow::showRuntimeSupportWarning()
+{
+    QStringList missing = MediaUtils::missingModernImageFormats();
+    missing.append(MediaUtils::missingCommonVideoCodecs());
+    if (missing.isEmpty())
+        return;
+    m_statusBar->showMessage(
+        tr("Limited media support; missing decoders: %1").arg(missing.join(", ")),
+        12000);
 }
 
 QString MainWindow::formatFileSize(qint64 bytes) const

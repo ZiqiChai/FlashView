@@ -7,6 +7,7 @@
 #include <QPointer>
 
 class QVariantAnimation;
+class QMovie;
 
 class ImageViewer : public QGraphicsView
 {
@@ -64,6 +65,7 @@ private:
     QString m_emptyDetails;
     QPointer<QVariantAnimation> m_zoomAnim;  // smooth zoom animation
     QPointer<QVariantAnimation> m_fadeAnim;  // image cross-in fade
+    QPointer<QMovie> m_movie;                // animated GIF playback
 };
 
 #endif // IMAGEVIEWER_H

@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Runtime image-format discovery, content/MIME probing and startup warnings for
+  missing modern image formats or common video codecs.
 - Progressive background thumbnail decoding for responsive large-folder browsing.
 - Background neighbour preloading with metadata-aware image cache keys.
 - Natural filename sorting, including numeric segments such as `image2` and
@@ -23,6 +25,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Media file discovery now follows the decoders available at runtime instead
+  of relying solely on a hard-coded extension list.
 - Reworked the toolbar and menu artwork into one consistent rounded-stroke icon
   system.
 - Balanced toolbar controls vertically and reduced excessive toolbar height.
@@ -38,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Fixed animated GIF files being displayed as a static first frame.
 - Fixed wheel-zoom mode stopping after the image became scrollable.
 - Fixed video audio continuing after switching to an image.
 - Fixed Space restarting a video instead of pausing and resuming it.

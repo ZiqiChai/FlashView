@@ -25,8 +25,12 @@ keyboard/mouse-wheel navigation.
 
 ## Features
 
-- **Images**: jpg / jpeg / png / bmp / gif / webp / tiff / tif / svg / ico
-- **Videos**: mp4 / mkv / avi / mov / wmv / flv / webm / m4v (via Qt Multimedia + GStreamer)
+- **Images**: formats are discovered from the installed Qt decoders at runtime;
+  common formats include JPEG, PNG, BMP, animated GIF, WebP, TIFF, SVG and ICO,
+  with APNG, AVIF, HEIF/HEIC, JPEG XL and camera RAW available when matching
+  Qt image plugins are installed
+- **Videos**: extensions come from the system MIME database and files are
+  content-probed; playback uses Qt Multimedia + the installed GStreamer codecs
 - Mouse-wheel paging with smooth accumulator (mouse & trackpad friendly)
 - Neighbour preloading + pixmap cache for instant back-and-forth browsing
 - Non-blocking, progressive thumbnail decoding for large folders
@@ -66,7 +70,7 @@ keyboard/mouse-wheel navigation.
 - Qt 6: Core, Gui, Widgets, Concurrent, Multimedia, MultimediaWidgets,
   LinguistTools and Test
 - Qt SVG and image-format runtime plugins
-- GStreamer plugins (runtime, for video playback)
+- GStreamer Base, Good, Bad, Ugly and libav plugins (runtime video codecs)
 
 On Debian/Ubuntu (22.04 / 24.04 / 26.04) everything can be installed with:
 

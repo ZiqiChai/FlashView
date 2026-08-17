@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QFont>
 #include <QImageReader>
+#include <QMovie>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QTimer>
@@ -39,27 +40,64 @@ ImageViewer::ImageViewer(QWidget *parent) : QGraphicsView(parent)
 
 bool ImageViewer::loadImage(const QString &filePath)
 {
-    // Use the shared pixmap cache: neighbours preloaded by MainWindow make
-    // paging feel instant; a cache miss decodes on demand.
     QPixmap pm;
-    const QString cacheKey = MediaUtils::imageCacheKey(filePath);
-    if (!QPixmapCache::find(cacheKey, &pm)) {
-        QImageReader reader(filePath);
-        reader.setAutoTransform(true);
-        QImage img = reader.read();
-        if (img.isNull()) {
-            clearImage(tr("This image could not be opened"), reader.errorString());
+    QMovie *movie = nullptr;
+    QImageReader animationReader(filePath);
+    const bool isAnimated = animationReader.canRead() && animationReader.supportsAnimation();
+
+    if (isAnimated) {
+        movie = new QMovie(filePath, QByteArray(), this);
+        movie->setCacheMode(QMovie::CacheAll);
+        if (!movie->isValid() || !movie->jumpToFrame(0)
+            || (pm = movie->currentPixmap()).isNull()) {
+            const QString error = movie->lastErrorString();
+            delete movie;
+            clearImage(tr("This image could not be opened"), error);
             return false;
         }
-        pm = QPixmap::fromImage(img);
-        QPixmapCache::insert(cacheKey, pm);
+    } else {
+        // Use the shared pixmap cache: neighbours preloaded by MainWindow make
+        // paging feel instant; a cache miss decodes on demand. Animated GIFs
+        // bypass this cache because a QPixmap only represents one frame.
+        const QString cacheKey = MediaUtils::imageCacheKey(filePath);
+        if (!QPixmapCache::find(cacheKey, &pm)) {
+            QImageReader reader(filePath);
+            reader.setAutoTransform(true);
+            QImage img = reader.read();
+            if (img.isNull()) {
+                clearImage(tr("This image could not be opened"), reader.errorString());
+                return false;
+            }
+            pm = QPixmap::fromImage(img);
+            QPixmapCache::insert(cacheKey, pm);
+        }
     }
 
     if (m_zoomAnim) m_zoomAnim->stop();
     if (m_fadeAnim) m_fadeAnim->stop();
+    if (m_movie) {
+        m_movie->stop();
+        delete m_movie;
+    }
     scene()->clear();
     m_pixmapItem = scene()->addPixmap(pm);
     scene()->setSceneRect(m_pixmapItem->boundingRect());
+    m_movie = movie;
+
+    if (m_movie) {
+        connect(m_movie, &QMovie::frameChanged, this, [this, movie](int) {
+            if (m_movie != movie || !m_pixmapItem)
+                return;
+            const QPixmap frame = movie->currentPixmap();
+            if (frame.isNull())
+                return;
+            const QRectF oldRect = m_pixmapItem->boundingRect();
+            m_pixmapItem->setPixmap(frame);
+            if (m_pixmapItem->boundingRect() != oldRect)
+                scene()->setSceneRect(m_pixmapItem->boundingRect());
+        });
+        m_movie->start();
+    }
 
     m_currentFile = filePath;
     m_hasImage = true;
@@ -93,6 +131,10 @@ void ImageViewer::clearImage(const QString &title, const QString &details)
 {
     if (m_zoomAnim) m_zoomAnim->stop();
     if (m_fadeAnim) m_fadeAnim->stop();
+    if (m_movie) {
+        m_movie->stop();
+        delete m_movie;
+    }
 
     scene()->clear();
     m_pixmapItem = nullptr;

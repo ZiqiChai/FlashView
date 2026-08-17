@@ -23,9 +23,11 @@ FlashView 是一款基于 Qt 6 开发的快速、轻量级 Linux 图片与视频
 
 ## 功能特性
 
-- **图片格式**：jpg / jpeg / png / bmp / gif / webp / tiff / tif / svg / ico
-- **视频格式**：mp4 / mkv / avi / mov / wmv / flv / webm / m4v
-  （通过 Qt Multimedia 与 GStreamer 播放）
+- **图片格式**：根据运行时已安装的 Qt 解码器动态发现；通常支持 JPEG、PNG、
+  BMP、GIF 动图、WebP、TIFF、SVG 和 ICO，安装相应 Qt 图片插件后还可支持
+  APNG、AVIF、HEIF/HEIC、JPEG XL 与相机 RAW
+- **视频格式**：扩展名来自系统 MIME 数据库，并根据文件内容探测；通过
+  Qt Multimedia 与已安装的 GStreamer codec 播放
 - 针对鼠标和触控板优化的平滑滚轮翻页
 - 相邻图片后台预加载与像素图缓存，往返浏览更加迅速
 - 大型文件夹缩略图异步渐进加载，不阻塞主界面
@@ -64,7 +66,7 @@ FlashView 是一款基于 Qt 6 开发的快速、轻量级 Linux 图片与视频
 - Qt 6：Core、Gui、Widgets、Concurrent、Multimedia、
   MultimediaWidgets、LinguistTools 和 Test
 - Qt SVG 与图片格式运行时插件
-- GStreamer 插件（运行时播放视频所需）
+- GStreamer Base、Good、Bad、Ugly 与 libav 插件（视频运行时 codec）
 
 在 Debian/Ubuntu 22.04、24.04 或 26.04 上可直接安装全部依赖：
 

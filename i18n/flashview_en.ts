@@ -170,6 +170,10 @@
         <source>Could not open %1</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Limited media support; missing decoders: %1</source>
+        <translation>Limited media support; missing decoders: %1</translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>

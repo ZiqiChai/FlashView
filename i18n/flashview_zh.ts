@@ -174,6 +174,10 @@
         <source>Could not open %1</source>
         <translation>无法打开 %1</translation>
     </message>
+    <message>
+        <source>Limited media support; missing decoders: %1</source>
+        <translation>多媒体支持受限，缺少解码器：%1</translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>

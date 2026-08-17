@@ -12,6 +12,7 @@
 #include <QListView>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMovie>
 #include <QPainter>
 #include <QSettings>
 #include <QStandardItemModel>
@@ -29,6 +30,7 @@ private slots:
     void initTestCase();
     void recognizesFormatsAndUsesNaturalOrder();
     void imageViewerClearsStaleContentOnDecodeFailure();
+    void animatedGifAdvancesFrames();
     void wheelZoomSettingWorksInsideTheViewer();
     void thumbnailsLoadProgressively();
     void mainWindowTracksFolderChanges();
@@ -55,6 +57,15 @@ void FlashViewTests::recognizesFormatsAndUsesNaturalOrder()
     QVERIFY(MediaUtils::isImageFile(QStringLiteral("holiday.JpG")));
     QVERIFY(MediaUtils::isVideoFile(QStringLiteral("clip.WEBM")));
     QVERIFY(!MediaUtils::isSupportedFile(QStringLiteral("notes.txt")));
+    QVERIFY(MediaUtils::imageExtensions().contains(QStringLiteral("png")));
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString disguisedPath = directory.filePath(QStringLiteral("image.data"));
+    QImage disguised(3, 2, QImage::Format_RGB32);
+    disguised.fill(Qt::cyan);
+    QVERIFY(disguised.save(disguisedPath, "PNG"));
+    QVERIFY(MediaUtils::isImageFile(disguisedPath));
 
     QStringList names = {
         QStringLiteral("image10.png"),
@@ -94,6 +105,33 @@ void FlashViewTests::imageViewerClearsStaleContentOnDecodeFailure()
     QVERIFY(!viewer.hasImage());
     QVERIFY(viewer.currentFile().isEmpty());
     QCOMPARE(viewer.imageSize(), QSize());
+}
+
+void FlashViewTests::animatedGifAdvancesFrames()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    // A looped 1x1 GIF with two independently timed frames.
+    const QByteArray gif = QByteArray::fromHex(
+        "47494638396101000100800000000000ffffff"
+        "21ff0b4e45545343415045322e300301000000"
+        "21f90400050000002c0000000001000100000202440100"
+        "21f90400050000002c00000000010001000002024c0100"
+        "3b");
+    QFile file(directory.filePath(QStringLiteral("animated.gif")));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(gif), gif.size());
+    file.close();
+
+    ImageViewer viewer;
+    QVERIFY(viewer.loadImage(file.fileName()));
+    auto *movie = viewer.findChild<QMovie *>();
+    QVERIFY(movie);
+    QVERIFY(movie->isValid());
+    QTRY_VERIFY_WITH_TIMEOUT(movie->currentFrameNumber() >= 1, 1000);
+    QVERIFY(viewer.hasImage());
+    QCOMPARE(viewer.imageSize(), QSize(1, 1));
 }
 
 void FlashViewTests::wheelZoomSettingWorksInsideTheViewer()

@@ -71,6 +71,7 @@ private:
     void switchLanguage(int langIndex, bool persist = true);
     void retranslateUi();
     void refreshToolbarIcons();
+    void showRuntimeSupportWarning();
     QIcon glyphIcon(const QString &glyph, const QColor &color) const;
     bool isVideoFile(const QString &fileName) const;
     QStringList supportedExtensions() const;
