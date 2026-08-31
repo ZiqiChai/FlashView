@@ -305,6 +305,26 @@
         <source>%1 and %2 use the same shortcut (%3).</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Auto (recommended)</source>
+        <translation>Auto (recommended)</translation>
+    </message>
+    <message>
+        <source>Smooth (photos)</source>
+        <translation>Smooth (photos)</translation>
+    </message>
+    <message>
+        <source>Nearest neighbor (pixel art)</source>
+        <translation>Nearest neighbor (pixel art)</translation>
+    </message>
+    <message>
+        <source>High-quality resampling runs in the background after zooming stops.</source>
+        <translation>High-quality resampling runs in the background after zooming stops.</translation>
+    </message>
+    <message>
+        <source>Scaling quality:</source>
+        <translation>Scaling quality:</translation>
+    </message>
 </context>
 <context>
     <name>VideoPlayer</name>

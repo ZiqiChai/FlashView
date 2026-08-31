@@ -5,6 +5,7 @@
 #include <QGraphicsPixmapItem>
 #include <QWheelEvent>
 #include <QPointer>
+#include <QImage>
 
 class QVariantAnimation;
 class QMovie;
@@ -14,11 +15,16 @@ class ImageViewer : public QGraphicsView
     Q_OBJECT
 
 public:
+    enum class InterpolationMode { Auto = 0, Smooth = 1, Nearest = 2 };
+    Q_ENUM(InterpolationMode)
+
     explicit ImageViewer(QWidget *parent = nullptr);
 
     bool loadImage(const QString &filePath);
     void clearImage(const QString &title = QString(), const QString &details = QString());
     void setWheelZoomEnabled(bool enabled) { m_wheelZoomEnabled = enabled; }
+    void setInterpolationMode(InterpolationMode mode);
+    InterpolationMode interpolationMode() const { return m_interpolationMode; }
     void zoomIn();
     void zoomOut();
     void fitToWindow();
@@ -50,6 +56,11 @@ private:
     void applyTransform();
     void applyFitTransform();
     void animateScaleTo(double target);
+    void updateInterpolation();
+    void scheduleHighQualityResample();
+    void restoreSourcePixmap();
+    bool useNearestNeighbor() const;
+    static bool looksLikePixelArt(const QImage &image);
     void updateCursor();
     bool isPannable() const;
 
@@ -67,6 +78,12 @@ private:
     QPointer<QVariantAnimation> m_zoomAnim;  // smooth zoom animation
     QPointer<QVariantAnimation> m_fadeAnim;  // image cross-in fade
     QPointer<QMovie> m_movie;                // animated GIF playback
+    QImage m_sourceImage;
+    InterpolationMode m_interpolationMode = InterpolationMode::Auto;
+    QTimer *m_resampleTimer = nullptr;
+    quint64 m_resampleGeneration = 0;
+    bool m_pixelArtCandidate = false;
+    bool m_usingResampledPixmap = false;
 };
 
 #endif // IMAGEVIEWER_H

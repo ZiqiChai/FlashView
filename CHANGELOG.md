@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Auto, Smooth and Nearest Neighbor scaling modes, including lightweight
+  pixel-art detection and deferred background resampling for static images.
 - Runtime image-format discovery, content/MIME probing and startup warnings for
   missing modern image formats or common video codecs.
 - Progressive background thumbnail decoding for responsive large-folder browsing.
@@ -25,6 +27,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Kept zoom interaction realtime while debouncing high-quality resampling;
+  bounded output size and generation checks prevent memory spikes and stale
+  background results during rapid zooming or paging.
 - Media file discovery now follows the decoders available at runtime instead
   of relying solely on a hard-coded extension list.
 - Reworked the toolbar and menu artwork into one consistent rounded-stroke icon

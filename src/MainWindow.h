@@ -125,6 +125,7 @@ private:
     QByteArray m_normalWindowState;
     bool m_thumbnailsVisible = true;
     bool m_wheelZoomMode = false;
+    int m_interpolationMode = 0;
     int m_language = 0; // 0=zh, 1=en
     QTranslator m_translator;
     QVector<QPair<QAction *, QString>> m_toolGlyphs; // toolbar glyphs, re-themed on theme change

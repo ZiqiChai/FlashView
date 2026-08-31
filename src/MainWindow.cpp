@@ -645,6 +645,7 @@ void MainWindow::onSettings()
     dlg.setBackgroundColor(ThemeManager::instance().backgroundColor());
     dlg.setThumbnailsVisible(m_thumbnailsVisible);
     dlg.setWheelZoomEnabled(m_wheelZoomMode);
+    dlg.setInterpolationMode(m_interpolationMode);
 
     dlg.setKeyNext(m_nextAction->shortcut());
     dlg.setKeyPrev(m_prevAction->shortcut());
@@ -678,6 +679,10 @@ void MainWindow::onSettings()
         // Wheel zoom mode
         m_wheelZoomMode = dlg.wheelZoomEnabled();
         m_imageViewer->setWheelZoomEnabled(m_wheelZoomMode);
+
+        m_interpolationMode = dlg.interpolationMode();
+        m_imageViewer->setInterpolationMode(
+            static_cast<ImageViewer::InterpolationMode>(m_interpolationMode));
 
         // Shortcuts
         m_nextAction->setShortcut(dlg.keyNext());
@@ -1042,6 +1047,9 @@ void MainWindow::loadSettings()
     m_thumbnailsVisible = s.value("thumbnailsVisible", true).toBool();
     m_wheelZoomMode = s.value("wheelZoomMode", false).toBool();
     m_imageViewer->setWheelZoomEnabled(m_wheelZoomMode);
+    m_interpolationMode = qBound(0, s.value("interpolationMode", 0).toInt(), 2);
+    m_imageViewer->setInterpolationMode(
+        static_cast<ImageViewer::InterpolationMode>(m_interpolationMode));
 
     m_thumbnailBar->setVisible(m_thumbnailsVisible);
 
@@ -1073,6 +1081,7 @@ void MainWindow::saveSettings()
     s.setValue("language", m_language);
     s.setValue("thumbnailsVisible", m_thumbnailsVisible);
     s.setValue("wheelZoomMode", m_wheelZoomMode);
+    s.setValue("interpolationMode", m_interpolationMode);
     s.setValue("keyNext", m_nextAction->shortcut());
     s.setValue("keyPrev", m_prevAction->shortcut());
     s.setValue("keyZoomIn", m_zoomInAction->shortcut());

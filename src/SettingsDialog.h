@@ -21,12 +21,14 @@ public:
     QColor backgroundColor() const;
     bool thumbnailsVisible() const;
     bool wheelZoomEnabled() const;
+    int interpolationMode() const;
 
     void setLanguageIndex(int idx);
     void setThemeIndex(int idx);
     void setBackgroundColor(const QColor &c);
     void setThumbnailsVisible(bool v);
     void setWheelZoomEnabled(bool v);
+    void setInterpolationMode(int mode);
 
     // Key sequences
     QKeySequence keyNext() const;
@@ -63,6 +65,7 @@ private:
     QPushButton *m_bgColorBtn = nullptr;
     QCheckBox *m_thumbCheck = nullptr;
     QCheckBox *m_wheelZoomCheck = nullptr;
+    QComboBox *m_interpolationCombo = nullptr;
     QColor m_bgColor;
 
     // Keys tab

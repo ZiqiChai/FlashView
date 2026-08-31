@@ -37,6 +37,9 @@ keyboard/mouse-wheel navigation.
 - Natural filename order (`photo2` before `photo10`) and live folder updates
 - Smooth zoom animation, cursor-anchored Ctrl+wheel zoom, double-click to
   toggle fit / 100%
+- Automatic, smooth-photo and nearest-neighbor pixel-art scaling modes;
+  high-quality static-image resampling runs in the background after zooming
+  stops, with bounded memory use and stale-result protection
 - Fade-in transitions between images; auto re-fit on window resize without
   upscaling low-resolution images above their pixel-perfect 100% size
 - Filmstrip thumbnail bar with per-pixel smooth scrolling and centering

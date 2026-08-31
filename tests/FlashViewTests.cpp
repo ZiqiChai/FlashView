@@ -32,6 +32,7 @@ private slots:
     void imageViewerClearsStaleContentOnDecodeFailure();
     void animatedGifAdvancesFrames();
     void fitToWindowNeverUpscalesSmallImages();
+    void interpolationModesRemainResponsive();
     void wheelZoomSettingWorksInsideTheViewer();
     void thumbnailsLoadProgressively();
     void mainWindowTracksFolderChanges();
@@ -162,6 +163,51 @@ void FlashViewTests::fitToWindowNeverUpscalesSmallImages()
 
     QVERIFY(viewer.loadImage(largePath));
     QTRY_VERIFY_WITH_TIMEOUT(viewer.currentScale() < 1.0, 500);
+}
+
+void FlashViewTests::interpolationModesRemainResponsive()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("sample.png"));
+    QImage image(96, 64, QImage::Format_RGB32);
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x)
+            image.setPixelColor(x, y, QColor(x * 2, y * 3, (x + y) * 2));
+    }
+    QVERIFY(image.save(imagePath));
+
+    ImageViewer viewer;
+    viewer.resize(480, 320);
+    viewer.show();
+    QVERIFY(viewer.loadImage(imagePath));
+    QTRY_COMPARE_WITH_TIMEOUT(viewer.currentScale(), 1.0, 500);
+
+    viewer.setInterpolationMode(ImageViewer::InterpolationMode::Nearest);
+    QVERIFY(!(viewer.renderHints() & QPainter::SmoothPixmapTransform));
+    viewer.setInterpolationMode(ImageViewer::InterpolationMode::Smooth);
+    QVERIFY(viewer.renderHints() & QPainter::SmoothPixmapTransform);
+
+    viewer.zoomIn();
+    QTRY_VERIFY_WITH_TIMEOUT(viewer.currentScale() > 1.0, 500);
+    QTRY_VERIFY_WITH_TIMEOUT(([&viewer, &image] {
+        const QList<QGraphicsItem *> items = viewer.scene()->items();
+        if (items.isEmpty())
+            return false;
+        auto *pixmapItem = qgraphicsitem_cast<QGraphicsPixmapItem *>(items.first());
+        return pixmapItem && pixmapItem->pixmap().width() > image.width();
+    }()), 1500);
+    QCOMPARE(viewer.imageSize(), image.size());
+
+    const QString pixelArtPath = directory.filePath(QStringLiteral("pixel-art.png"));
+    QImage pixelArt(32, 32, QImage::Format_RGB32);
+    pixelArt.fill(Qt::magenta);
+    QVERIFY(pixelArt.save(pixelArtPath));
+    viewer.setInterpolationMode(ImageViewer::InterpolationMode::Auto);
+    QVERIFY(viewer.loadImage(pixelArtPath));
+    viewer.zoomIn();
+    QTRY_VERIFY_WITH_TIMEOUT(viewer.currentScale() > 1.0, 500);
+    QVERIFY(!(viewer.renderHints() & QPainter::SmoothPixmapTransform));
 }
 
 void FlashViewTests::wheelZoomSettingWorksInsideTheViewer()

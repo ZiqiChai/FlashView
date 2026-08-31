@@ -309,6 +309,26 @@
         <source>%1 and %2 use the same shortcut (%3).</source>
         <translation>%1 和 %2 使用了相同的快捷键（%3）。</translation>
     </message>
+    <message>
+        <source>Auto (recommended)</source>
+        <translation>自动（推荐）</translation>
+    </message>
+    <message>
+        <source>Smooth (photos)</source>
+        <translation>平滑（照片）</translation>
+    </message>
+    <message>
+        <source>Nearest neighbor (pixel art)</source>
+        <translation>最近邻（像素画）</translation>
+    </message>
+    <message>
+        <source>High-quality resampling runs in the background after zooming stops.</source>
+        <translation>停止缩放后将在后台执行高质量重采样。</translation>
+    </message>
+    <message>
+        <source>Scaling quality:</source>
+        <translation>缩放质量：</translation>
+    </message>
 </context>
 <context>
     <name>VideoPlayer</name>

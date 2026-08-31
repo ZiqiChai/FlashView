@@ -59,6 +59,14 @@ void SettingsDialog::setupUI()
     m_wheelZoomCheck = new QCheckBox(tr("Scroll wheel to zoom (instead of navigate)"));
     generalLayout->addRow("", m_wheelZoomCheck);
 
+    m_interpolationCombo = new QComboBox;
+    m_interpolationCombo->addItem(tr("Auto (recommended)"));
+    m_interpolationCombo->addItem(tr("Smooth (photos)"));
+    m_interpolationCombo->addItem(tr("Nearest neighbor (pixel art)"));
+    m_interpolationCombo->setToolTip(
+        tr("High-quality resampling runs in the background after zooming stops."));
+    generalLayout->addRow(tr("Scaling quality:"), m_interpolationCombo);
+
     m_tabs->addTab(generalTab, tr("General"));
 
     // Keys tab
@@ -110,6 +118,7 @@ void SettingsDialog::setupUI()
         setBackgroundColor(QColor(24, 24, 32));
         m_thumbCheck->setChecked(true);
         m_wheelZoomCheck->setChecked(false);
+        m_interpolationCombo->setCurrentIndex(0);
         setKeyNext(QKeySequence(Qt::Key_Right));
         setKeyPrev(QKeySequence(Qt::Key_Left));
         setKeyZoomIn(QKeySequence::ZoomIn);
@@ -165,6 +174,7 @@ int SettingsDialog::themeIndex() const { return m_themeCombo->currentIndex(); }
 QColor SettingsDialog::backgroundColor() const { return m_bgColor; }
 bool SettingsDialog::thumbnailsVisible() const { return m_thumbCheck->isChecked(); }
 bool SettingsDialog::wheelZoomEnabled() const { return m_wheelZoomCheck->isChecked(); }
+int SettingsDialog::interpolationMode() const { return m_interpolationCombo->currentIndex(); }
 
 void SettingsDialog::setLanguageIndex(int idx) { m_langCombo->setCurrentIndex(idx); }
 void SettingsDialog::setThemeIndex(int idx) { m_themeCombo->setCurrentIndex(idx); }
@@ -176,6 +186,9 @@ void SettingsDialog::setBackgroundColor(const QColor &c) {
 }
 void SettingsDialog::setThumbnailsVisible(bool v) { m_thumbCheck->setChecked(v); }
 void SettingsDialog::setWheelZoomEnabled(bool v) { m_wheelZoomCheck->setChecked(v); }
+void SettingsDialog::setInterpolationMode(int mode) {
+    m_interpolationCombo->setCurrentIndex(qBound(0, mode, 2));
+}
 
 QKeySequence SettingsDialog::keyNext() const { return m_keyNext->keySequence(); }
 QKeySequence SettingsDialog::keyPrev() const { return m_keyPrev->keySequence(); }

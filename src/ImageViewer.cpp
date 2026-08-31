@@ -12,6 +12,9 @@
 #include <QVariantAnimation>
 #include <QEasingCurve>
 #include <QResizeEvent>
+#include <QFutureWatcher>
+#include <QtConcurrent>
+#include <QSet>
 #include <cmath>
 
 namespace {
@@ -19,6 +22,9 @@ constexpr int    kFadeMs   = 180;   // image cross-in fade duration
 constexpr int    kZoomMs   = 160;   // smooth zoom animation duration
 constexpr double kMinScale = 0.02;  // zoom-out floor
 constexpr double kMaxScale = 100.0; // zoom-in ceiling
+constexpr int    kResampleDelayMs = 180;
+constexpr qint64 kMaxSourcePixels = 24LL * 1024 * 1024;
+constexpr qint64 kMaxResamplePixels = 16LL * 1024 * 1024;
 }
 
 ImageViewer::ImageViewer(QWidget *parent) : QGraphicsView(parent)
@@ -36,6 +42,12 @@ ImageViewer::ImageViewer(QWidget *parent) : QGraphicsView(parent)
 
     connect(&ThemeManager::instance(), &ThemeManager::backgroundColorChanged,
             this, [this](const QColor &) { viewport()->update(); });
+
+    m_resampleTimer = new QTimer(this);
+    m_resampleTimer->setSingleShot(true);
+    m_resampleTimer->setInterval(kResampleDelayMs);
+    connect(m_resampleTimer, &QTimer::timeout,
+            this, &ImageViewer::scheduleHighQualityResample);
 }
 
 bool ImageViewer::loadImage(const QString &filePath)
@@ -83,6 +95,12 @@ bool ImageViewer::loadImage(const QString &filePath)
     m_pixmapItem = scene()->addPixmap(pm);
     scene()->setSceneRect(m_pixmapItem->boundingRect());
     m_movie = movie;
+    const qint64 imagePixels = qint64(pm.width()) * pm.height();
+    m_sourceImage = !m_movie && imagePixels <= kMaxSourcePixels
+        ? pm.toImage() : QImage();
+    m_pixelArtCandidate = looksLikePixelArt(m_sourceImage);
+    m_usingResampledPixmap = false;
+    ++m_resampleGeneration;
 
     if (m_movie) {
         connect(m_movie, &QMovie::frameChanged, this, [this, movie](int) {
@@ -106,6 +124,7 @@ bool ImageViewer::loadImage(const QString &filePath)
     m_fitMode = true;
     m_emptyTitle.clear();
     m_emptyDetails.clear();
+    updateInterpolation();
 
     // Fade-in transition so switching images is a smooth cross-in, not a jump.
     // Cancel any in-flight fade first: on rapid paging, overlapping animations
@@ -135,6 +154,10 @@ void ImageViewer::clearImage(const QString &title, const QString &details)
         m_movie->stop();
         delete m_movie;
     }
+    if (m_resampleTimer) m_resampleTimer->stop();
+    ++m_resampleGeneration;
+    m_sourceImage = QImage();
+    m_usingResampledPixmap = false;
 
     scene()->clear();
     m_pixmapItem = nullptr;
@@ -159,6 +182,18 @@ void ImageViewer::zoomIn()
     animateScaleTo(m_scaleFactor * 1.25);
 }
 
+void ImageViewer::setInterpolationMode(InterpolationMode mode)
+{
+    if (m_interpolationMode == mode)
+        return;
+    m_interpolationMode = mode;
+    ++m_resampleGeneration;
+    restoreSourcePixmap();
+    updateInterpolation();
+    if (m_hasImage && !m_movie && !useNearestNeighbor())
+        m_resampleTimer->start();
+}
+
 void ImageViewer::zoomOut()
 {
     m_fitMode = false;
@@ -175,6 +210,8 @@ void ImageViewer::fitToWindow()
 
 void ImageViewer::applyFitTransform()
 {
+    ++m_resampleGeneration;
+    restoreSourcePixmap();
     resetTransform();
     rotate(m_rotation);
     fitInView(sceneRect(), Qt::KeepAspectRatio);
@@ -188,6 +225,9 @@ void ImageViewer::applyFitTransform()
         m_scaleFactor = 1.0;
     }
     emit scaleChanged(m_scaleFactor);
+    updateInterpolation();
+    if (!m_movie && !useNearestNeighbor())
+        m_resampleTimer->start();
 }
 
 void ImageViewer::actualSize()
@@ -221,15 +261,22 @@ double ImageViewer::currentScale() const
 QSize ImageViewer::imageSize() const
 {
     if (!m_hasImage || !m_pixmapItem) return {};
+    if (!m_sourceImage.isNull())
+        return m_sourceImage.size();
     return m_pixmapItem->pixmap().size();
 }
 
 void ImageViewer::applyTransform()
 {
+    ++m_resampleGeneration;
+    restoreSourcePixmap();
     resetTransform();
     rotate(m_rotation);
     scale(m_scaleFactor, m_scaleFactor);
     emit scaleChanged(m_scaleFactor);
+    updateInterpolation();
+    if (!m_movie && !useNearestNeighbor())
+        m_resampleTimer->start();
 }
 
 void ImageViewer::wheelEvent(QWheelEvent *event)
@@ -251,11 +298,16 @@ void ImageViewer::wheelEvent(QWheelEvent *event)
         }
         const double target = qBound(kMinScale, m_scaleFactor * std::pow(1.25, steps), kMaxScale);
         const double factor = target / m_scaleFactor;
+        ++m_resampleGeneration;
+        restoreSourcePixmap();
         setTransformationAnchor(QGraphicsView::AnchorUnderMouse);
         scale(factor, factor);
         setTransformationAnchor(QGraphicsView::AnchorViewCenter);
         m_scaleFactor = target;
         emit scaleChanged(m_scaleFactor);
+        updateInterpolation();
+        if (!m_movie && !useNearestNeighbor())
+            m_resampleTimer->start();
         updateCursor();
         event->accept();
         return;
@@ -352,6 +404,102 @@ void ImageViewer::updateCursor()
 {
     if (!m_hasImage) { viewport()->setCursor(Qt::ArrowCursor); return; }
     viewport()->setCursor(isPannable() ? Qt::OpenHandCursor : Qt::ArrowCursor);
+}
+
+bool ImageViewer::useNearestNeighbor() const
+{
+    return m_interpolationMode == InterpolationMode::Nearest
+        || (m_interpolationMode == InterpolationMode::Auto
+            && m_scaleFactor > 1.0 && m_pixelArtCandidate);
+}
+
+void ImageViewer::updateInterpolation()
+{
+    setRenderHint(QPainter::SmoothPixmapTransform, !useNearestNeighbor());
+    if (m_pixmapItem) {
+        m_pixmapItem->setTransformationMode(useNearestNeighbor()
+            ? Qt::FastTransformation : Qt::SmoothTransformation);
+    }
+    if (useNearestNeighbor()) {
+        if (m_resampleTimer) m_resampleTimer->stop();
+        ++m_resampleGeneration;
+        restoreSourcePixmap();
+    }
+    viewport()->update();
+}
+
+void ImageViewer::restoreSourcePixmap()
+{
+    if (!m_usingResampledPixmap || !m_pixmapItem || m_sourceImage.isNull())
+        return;
+    m_pixmapItem->setPixmap(QPixmap::fromImage(m_sourceImage));
+    m_pixmapItem->setScale(1.0);
+    scene()->setSceneRect(m_pixmapItem->boundingRect());
+    m_usingResampledPixmap = false;
+}
+
+bool ImageViewer::looksLikePixelArt(const QImage &image)
+{
+    if (image.isNull() || image.width() > 512 || image.height() > 512)
+        return false;
+    const QImage sample = image.scaled(128, 128, Qt::KeepAspectRatio,
+                                       Qt::FastTransformation)
+                              .convertToFormat(QImage::Format_ARGB32);
+    QSet<QRgb> colors;
+    for (int y = 0; y < sample.height(); ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb *>(sample.constScanLine(y));
+        for (int x = 0; x < sample.width(); ++x) {
+            colors.insert(line[x]);
+            if (colors.size() > 256)
+                return false;
+        }
+    }
+    return true;
+}
+
+void ImageViewer::scheduleHighQualityResample()
+{
+    if (!m_hasImage || m_movie || m_sourceImage.isNull() || useNearestNeighbor())
+        return;
+
+    const double deviceScale = viewport()->devicePixelRatioF();
+    double requestedScale = m_scaleFactor * deviceScale;
+    if (qAbs(requestedScale - 1.0) < 0.08) {
+        restoreSourcePixmap();
+        return;
+    }
+    const qint64 sourcePixels = qint64(m_sourceImage.width()) * m_sourceImage.height();
+    if (sourcePixels <= 0)
+        return;
+    requestedScale = qMin(requestedScale,
+                          std::sqrt(double(kMaxResamplePixels) / sourcePixels));
+    if (requestedScale <= 0.0)
+        return;
+
+    const QSize targetSize(qMax(1, qRound(m_sourceImage.width() * requestedScale)),
+                           qMax(1, qRound(m_sourceImage.height() * requestedScale)));
+    const QImage source = m_sourceImage;
+    const quint64 generation = ++m_resampleGeneration;
+    auto *watcher = new QFutureWatcher<QImage>(this);
+    connect(watcher, &QFutureWatcher<QImage>::finished, this,
+            [this, watcher, generation, targetSize] {
+        const QImage result = watcher->result();
+        watcher->deleteLater();
+        if (generation != m_resampleGeneration || result.isNull()
+            || !m_pixmapItem || m_movie || useNearestNeighbor())
+            return;
+        QPixmap pixmap = QPixmap::fromImage(result);
+        m_pixmapItem->setPixmap(pixmap);
+        const double itemScale = double(m_sourceImage.width()) / targetSize.width();
+        m_pixmapItem->setScale(itemScale);
+        scene()->setSceneRect(m_pixmapItem->mapRectToScene(m_pixmapItem->boundingRect()));
+        m_usingResampledPixmap = true;
+        viewport()->update();
+    });
+    watcher->setFuture(QtConcurrent::run([source, targetSize] {
+        return source.scaled(targetSize, Qt::IgnoreAspectRatio,
+                             Qt::SmoothTransformation);
+    }));
 }
 
 bool ImageViewer::isPannable() const
