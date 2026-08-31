@@ -48,6 +48,7 @@ protected:
 
 private:
     void applyTransform();
+    void applyFitTransform();
     void animateScaleTo(double target);
     void updateCursor();
     bool isPannable() const;

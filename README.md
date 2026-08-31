@@ -37,7 +37,8 @@ keyboard/mouse-wheel navigation.
 - Natural filename order (`photo2` before `photo10`) and live folder updates
 - Smooth zoom animation, cursor-anchored Ctrl+wheel zoom, double-click to
   toggle fit / 100%
-- Fade-in transitions between images; auto re-fit on window resize
+- Fade-in transitions between images; auto re-fit on window resize without
+  upscaling low-resolution images above their pixel-perfect 100% size
 - Filmstrip thumbnail bar with per-pixel smooth scrolling and centering
 - Rotation, fullscreen with idle cursor hiding, drag & drop of files or folders
 - Clear empty/error states; stale images and background video audio are never

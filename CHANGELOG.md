@@ -42,6 +42,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Prevented Fit Window from upscaling low-resolution images above 100%; large
+  images are still reduced to fit and explicit zoom can still enlarge them.
 - Fixed animated GIF files being displayed as a static first frame.
 - Fixed wheel-zoom mode stopping after the image became scrollable.
 - Fixed video audio continuing after switching to an image.

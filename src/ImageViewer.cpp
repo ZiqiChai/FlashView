@@ -169,13 +169,25 @@ void ImageViewer::fitToWindow()
 {
     if (!m_hasImage) return;
     m_fitMode = true;
+    applyFitTransform();
+    updateCursor();
+}
+
+void ImageViewer::applyFitTransform()
+{
     resetTransform();
     rotate(m_rotation);
     fitInView(sceneRect(), Qt::KeepAspectRatio);
     // transform = rotation * scale; uniform scale magnitude = hypot(m11, m12)
     m_scaleFactor = std::hypot(transform().m11(), transform().m12());
+    // Fitting may enlarge a small image. Keep the default view pixel-perfect;
+    // users can still zoom beyond 100% explicitly.
+    if (m_scaleFactor > 1.0) {
+        resetTransform();
+        rotate(m_rotation);
+        m_scaleFactor = 1.0;
+    }
     emit scaleChanged(m_scaleFactor);
-    updateCursor();
 }
 
 void ImageViewer::actualSize()
@@ -311,13 +323,8 @@ void ImageViewer::resizeEvent(QResizeEvent *event)
 {
     QGraphicsView::resizeEvent(event);
     // Keep the image fitted while the window is being resized/maximised.
-    if (m_hasImage && m_fitMode) {
-        resetTransform();
-        rotate(m_rotation);
-        fitInView(sceneRect(), Qt::KeepAspectRatio);
-        m_scaleFactor = std::hypot(transform().m11(), transform().m12());
-        emit scaleChanged(m_scaleFactor);
-    }
+    if (m_hasImage && m_fitMode)
+        applyFitTransform();
     updateCursor();
 }
 

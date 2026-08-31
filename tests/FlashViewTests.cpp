@@ -31,6 +31,7 @@ private slots:
     void recognizesFormatsAndUsesNaturalOrder();
     void imageViewerClearsStaleContentOnDecodeFailure();
     void animatedGifAdvancesFrames();
+    void fitToWindowNeverUpscalesSmallImages();
     void wheelZoomSettingWorksInsideTheViewer();
     void thumbnailsLoadProgressively();
     void mainWindowTracksFolderChanges();
@@ -132,6 +133,35 @@ void FlashViewTests::animatedGifAdvancesFrames()
     QTRY_VERIFY_WITH_TIMEOUT(movie->currentFrameNumber() >= 1, 1000);
     QVERIFY(viewer.hasImage());
     QCOMPARE(viewer.imageSize(), QSize(1, 1));
+}
+
+void FlashViewTests::fitToWindowNeverUpscalesSmallImages()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    const QString smallPath = directory.filePath(QStringLiteral("small.png"));
+    QImage small(80, 60, QImage::Format_RGB32);
+    small.fill(Qt::cyan);
+    QVERIFY(small.save(smallPath));
+
+    const QString largePath = directory.filePath(QStringLiteral("large.png"));
+    QImage large(1600, 1200, QImage::Format_RGB32);
+    large.fill(Qt::blue);
+    QVERIFY(large.save(largePath));
+
+    ImageViewer viewer;
+    viewer.resize(400, 300);
+    viewer.show();
+
+    QVERIFY(viewer.loadImage(smallPath));
+    QTRY_COMPARE_WITH_TIMEOUT(viewer.currentScale(), 1.0, 500);
+
+    viewer.zoomIn();
+    QTRY_VERIFY_WITH_TIMEOUT(viewer.currentScale() > 1.0, 500);
+
+    QVERIFY(viewer.loadImage(largePath));
+    QTRY_VERIFY_WITH_TIMEOUT(viewer.currentScale() < 1.0, 500);
 }
 
 void FlashViewTests::wheelZoomSettingWorksInsideTheViewer()
