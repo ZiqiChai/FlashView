@@ -56,7 +56,12 @@ qt_add_executable(flashview
     resources/resources.qrc
 )
 
-qt_add_translations(flashview TS_FILES ${TS_FILES})
+qt_add_translations(flashview TS_FILES ${TS_FILES}
+    QM_FILES_OUTPUT_VARIABLE FLASHVIEW_QM_FILES)
+qt_add_resources(flashview "translations"
+    PREFIX "/i18n"
+    BASE "${CMAKE_CURRENT_BINARY_DIR}"
+    FILES ${FLASHVIEW_QM_FILES})
 
 target_link_libraries(flashview PRIVATE
     Qt6::Core
@@ -99,6 +104,12 @@ if(BUILD_TESTING)
         src/FlashViewStyle.h
     )
     target_include_directories(flashview_tests PRIVATE src)
+    # Capture the same translated UI as the application, without relying on
+    # translations being installed next to the test executable.
+    qt_add_resources(flashview_tests "test_translations"
+        PREFIX "/i18n"
+        BASE "${CMAKE_CURRENT_BINARY_DIR}"
+        FILES ${FLASHVIEW_QM_FILES})
     target_link_libraries(flashview_tests PRIVATE
         Qt6::Core
         Qt6::Gui

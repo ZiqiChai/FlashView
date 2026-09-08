@@ -384,9 +384,19 @@ void FlashViewTests::generateDocumentationScreenshots()
     samplePainter.end();
     QVERIFY(sample.save(mediaPath, "PNG"));
 
-    auto captureWindow = [&](ThemeManager::Theme theme, const QString &fileName,
-                             bool captureViewMenu) {
+    const QFont previousFont = qApp->font();
+    qApp->setFont(QFont(QStringLiteral("Noto Sans CJK SC"), 10));
+
+    auto captureWindow = [&](int language, ThemeManager::Theme theme,
+                             const QString &stem) {
+        // QSettings is already isolated in a temporary directory by initTestCase.
+        QSettings settings;
+        settings.clear();
+        settings.setValue("language", language);
+        settings.setValue("thumbnailsVisible", true);
         ThemeManager::instance().setTheme(theme);
+        ThemeManager::instance().setBackgroundColor(theme == ThemeManager::Dark
+            ? QColor(24, 24, 32) : QColor(250, 250, 252));
         MainWindow window;
         window.resize(1200, 800);
         window.openFile(mediaPath);
@@ -394,14 +404,29 @@ void FlashViewTests::generateDocumentationScreenshots()
         QTest::qWait(300);
         QApplication::processEvents();
 
-        QPixmap screenshot = window.grab();
-        if (captureViewMenu) {
+        // Assert actual visible text: a missing translation must fail the
+        // capture instead of silently producing English screenshots for zh.
+        QCOMPARE(window.menuBar()->actions().first()->text(),
+                 language == 0 ? QStringLiteral("文件(&F)")
+                               : QStringLiteral("&File"));
+        auto *thumbnailView = window.findChild<ThumbnailBar *>()->findChild<QListView *>();
+        QVERIFY(thumbnailView);
+        QTRY_VERIFY_WITH_TIMEOUT(!thumbnailView->model()->index(0, 0)
+            .data(Qt::DecorationRole).value<QIcon>().isNull(), 3000);
+        // Transient machine-specific codec messages should not cover the
+        // file information in documentation captures.
+        window.statusBar()->clearMessage();
+        window.menuBar()->setActiveAction(nullptr);
+        QVERIFY(window.grab().save(QDir(outputDirectory).filePath(stem + ".png"), "PNG"));
+
+        {
             QAction *viewAction = window.menuBar()->actions().at(1);
             QMenu *viewMenu = viewAction->menu();
             viewMenu->popup(window.mapToGlobal(
                 QPoint(window.menuBar()->actionGeometry(viewAction).left(),
                        window.menuBar()->height())));
             QTest::qWait(80);
+            QPixmap screenshot = window.grab();
             const QPixmap menu = viewMenu->grab();
             viewMenu->hide();
 
@@ -409,18 +434,17 @@ void FlashViewTests::generateDocumentationScreenshots()
             painter.drawPixmap(
                 window.menuBar()->actionGeometry(viewAction).left(),
                 window.menuBar()->height(), menu);
+            painter.end();
+            QVERIFY(screenshot.save(
+                QDir(outputDirectory).filePath(stem + "-menu.png"), "PNG"));
         }
-
-        QVERIFY(screenshot.save(
-            QDir(outputDirectory).filePath(fileName), "PNG"));
     };
 
-    captureWindow(ThemeManager::Dark,
-                  QStringLiteral("flashview-dark.png"), false);
-    captureWindow(ThemeManager::Light,
-                  QStringLiteral("flashview-light.png"), false);
-    captureWindow(ThemeManager::Dark,
-                  QStringLiteral("flashview-view-menu.png"), true);
+    captureWindow(0, ThemeManager::Dark, QStringLiteral("flashview-zh-dark"));
+    captureWindow(0, ThemeManager::Light, QStringLiteral("flashview-zh-light"));
+    captureWindow(1, ThemeManager::Dark, QStringLiteral("flashview-en-dark"));
+    captureWindow(1, ThemeManager::Light, QStringLiteral("flashview-en-light"));
+    qApp->setFont(previousFont);
 }
 
 QTEST_MAIN(FlashViewTests)

@@ -27,6 +27,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Reorganized both READMEs around setup, viewing, format support and development;
+  each now includes matching English or Chinese screenshots in both themes.
+- Embedded application translations in the screenshot test and added visible
+  language checks for reproducible bilingual main-window and menu captures.
 - Kept zoom interaction realtime while debouncing high-quality resampling;
   bounded output size and generation checks prevent memory spikes and stale
   background results during rapid zooming or paging.
