@@ -8,6 +8,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- An optional file-manager preview service, installed by default, that answers
+  the space-bar preview of GNOME Files with a borderless image and video
+  overlay; arrow keys move the selection in the file manager so the preview
+  follows the order it displays. It degrades to the plain viewer when it is
+  built out (`FLASHVIEW_ENABLE_PREVIEWER=OFF`, `install.sh --no-previewer`),
+  when Qt DBus or a session bus is missing, or when another previewer already
+  owns the service name.
 - `Delete` removes the current file by moving it to the trash, with an optional
   confirmation prompt that is off by default and a remappable shortcut.
 - A pinned browsing order, selectable by name, modified time, created time, file

@@ -92,6 +92,35 @@ extra work and memory use. This improves display smoothness; it does not recover
 missing detail or perform AI upscaling. All modes preserve the default
 shrink-to-fit behavior, and manual zoom can exceed 100%.
 
+## File manager preview (optional)
+
+FlashView can answer the space-bar preview of GNOME Files: select an image or a
+video, press `Space`, and a borderless preview appears over the file manager.
+The arrow keys move the selection in Files itself, so the preview always follows
+the order the file manager shows, whatever that order is.
+
+| Action in the preview | Shortcut |
+| --- | --- |
+| Close | `Space`, `Esc` |
+| Previous / next file (moves the selection in Files) | `←` `→` `↑` `↓` |
+| Open in the full FlashView window | `Enter` |
+| Fit to window / actual size | `F` / `1` |
+
+The service is installed by default, and every part of it is optional:
+
+- `./install.sh --no-previewer`, or `cmake -DFLASHVIEW_ENABLE_PREVIEWER=OFF`,
+  builds the viewer exactly as it was before.
+- Without the Qt 6 DBus module at configure time it is skipped automatically.
+- Without a session bus, or when another previewer such as `gnome-sushi`
+  already owns the service name, FlashView leaves the name alone and stays a
+  plain viewer.
+- Files it cannot decode, files that vanished and remote locations get a short
+  explanation, with `Enter` to hand the file to another application.
+
+Known limits: the service starts on demand and exits after ten idle minutes;
+only local files are previewed; on Wayland the overlay cannot attach itself to
+the Files window, so it opens centred on the screen instead.
+
 ## Media formats and runtime support
 
 **Images:** FlashView discovers formats from the installed Qt image decoders.
@@ -147,7 +176,8 @@ image fits. General settings can change the wheel to zoom instead.
 
 - CMake ≥ 3.16, a C++17 compiler
 - Qt 6: Core, Gui, Widgets, Concurrent, Multimedia, MultimediaWidgets,
-  LinguistTools and Test
+  LinguistTools and Test, plus DBus for the optional file manager preview
+  (all provided by `qt6-base-dev` and friends)
 - Qt SVG and image-format runtime plugins
 - GStreamer Base, Good, Bad, Ugly and libav plugins (runtime video codecs)
 
@@ -202,7 +232,8 @@ GitHub Actions — see [.github/workflows/build.yml](.github/workflows/build.yml
 
 ```bash
 src/            C++ sources (MainWindow, ImageViewer, VideoPlayer,
-                ThumbnailBar, ThemeManager, SettingsDialog)
+                ThumbnailBar, ThemeManager, SettingsDialog, and the optional
+                PreviewWindow/PreviewerService pair)
 i18n/           Qt Linguist translations (en, zh)
 resources/      Icons and Qt resource files
 screenshots/    English/Chinese captures in both themes

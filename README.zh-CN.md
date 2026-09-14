@@ -84,6 +84,32 @@ cmake --build build --parallel
 也不属于 AI 超分辨率。所有模式均保持默认只缩小、不放大的适配规则，手动缩放
 仍可超过 100%。
 
+## 文件管理器快速预览（可选）
+
+FlashView 可以接管 GNOME 文件（Nautilus）的空格键预览：在文件管理器中选中
+图片或视频后按 `空格`，即可弹出无边框预览浮层。方向键切换的是文件管理器
+自身的选中项，因此预览顺序始终与文件管理器当前显示的排序一致。
+
+| 预览浮层内的操作 | 快捷键 |
+| --- | --- |
+| 关闭 | `空格`、`Esc` |
+| 上一个 / 下一个文件（同步移动文件管理器选中项） | `←` `→` `↑` `↓` |
+| 用 FlashView 完整窗口打开 | `回车` |
+| 适应窗口 / 实际大小 | `F` / `1` |
+
+该服务默认安装，且每一层都可以退回到基本的看图看视频功能：
+
+- `./install.sh --no-previewer` 或 `cmake -DFLASHVIEW_ENABLE_PREVIEWER=OFF`
+  构建出的就是原来的纯查看器。
+- 配置阶段缺少 Qt 6 DBus 模块时自动跳过该功能，不影响构建。
+- 没有会话总线，或 `gnome-sushi` 等其他预览程序已占用服务名时，FlashView
+  不会去抢占，仍作为普通查看器使用。
+- 无法解码的文件、已删除的文件和远程位置会给出提示，可按 `回车` 交给其他
+  程序打开。
+
+已知限制：服务按需启动，空闲 10 分钟后自动退出；只预览本地文件；Wayland 下
+浮层无法附着到文件管理器窗口，改为屏幕居中显示。
+
 ## 媒体格式与运行时支持
 
 **图片：**根据已安装的 Qt 图片解码器发现格式。常见格式包括 JPEG、PNG、BMP、
@@ -134,7 +160,8 @@ Qt 的平台默认绑定可能有所不同。普通滚轮在图片可滚动时�
 
 - CMake ≥ 3.16 和支持 C++17 的编译器
 - Qt 6：Core、Gui、Widgets、Concurrent、Multimedia、
-  MultimediaWidgets、LinguistTools 和 Test
+  MultimediaWidgets、LinguistTools 和 Test，以及可选预览功能所需的 DBus
+  （均由 qt6-base-dev 等软件包提供）
 - Qt SVG 与图片格式运行时插件
 - GStreamer Base、Good、Bad、Ugly 与 libav 插件（视频运行时 codec）
 

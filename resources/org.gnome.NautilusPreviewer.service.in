@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.gnome.NautilusPreviewer
+Exec=@FLASHVIEW_PREVIEWER_EXEC@ --previewer

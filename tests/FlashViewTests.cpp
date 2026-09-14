@@ -23,6 +23,28 @@
 #include <QToolButton>
 #include <QWheelEvent>
 
+#ifdef FLASHVIEW_HAVE_PREVIEWER
+#include "PreviewWindow.h"
+#include "PreviewerService.h"
+
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QUrl>
+
+// Captures the D-Bus signal the preview sends back to the file manager.
+class SelectionEventRecorder : public QObject
+{
+    Q_OBJECT
+
+public:
+    QVector<uint> directions;
+
+public slots:
+    void record(uint direction) { directions.append(direction); }
+};
+#endif
+
 class FlashViewTests : public QObject
 {
     Q_OBJECT
@@ -40,6 +62,10 @@ private slots:
     void browsingOrderFollowsTheChosenSortKey();
     void deleteKeyRemovesTheFileAndShowsTheNextOne();
     void toolbarActionsHaveClearVisualSemantics();
+#ifdef FLASHVIEW_HAVE_PREVIEWER
+    void previewServiceAnswersTheFileManager();
+    void previewServiceDegradesInsteadOfFailing();
+#endif
     void generateDocumentationScreenshots();
 
 private:
@@ -482,6 +508,152 @@ void FlashViewTests::toolbarActionsHaveClearVisualSemantics()
     QVERIFY(fitWindow->icon().cacheKey() != fullscreen->icon().cacheKey());
     QVERIFY(!thumbnails->isCheckable());
 }
+
+#ifdef FLASHVIEW_HAVE_PREVIEWER
+void FlashViewTests::previewServiceAnswersTheFileManager()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        QSKIP("No session bus available for the preview service");
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString imagePath = directory.filePath(QStringLiteral("preview.png"));
+    QImage image(320, 240, QImage::Format_RGB32);
+    image.fill(QColor(74, 128, 224));
+    QVERIFY(image.save(imagePath));
+
+    // A private name keeps the test from taking over the desktop's previewer.
+    const QString serviceName =
+        QStringLiteral("org.gnome.NautilusPreviewer.FlashViewTest");
+    PreviewerService service;
+    service.setIdleTimeoutMinutes(0);
+    QString message;
+    QCOMPARE(service.registerOnBus(&message, serviceName),
+             PreviewerService::Registration::Registered);
+
+    QDBusInterface previewer(serviceName, PreviewerService::objectPath(),
+                             PreviewerService::interfaceName(), bus);
+    QVERIFY(previewer.isValid());
+
+    SelectionEventRecorder recorder;
+    QVERIFY(bus.connect(serviceName, PreviewerService::objectPath(),
+                        PreviewerService::interfaceName(),
+                        QStringLiteral("SelectionEvent"),
+                        &recorder, SLOT(record(uint))));
+
+    const QString uri = QUrl::fromLocalFile(imagePath).toString();
+    QDBusReply<void> shown = previewer.call(QStringLiteral("ShowFile"), uri,
+                                            QString(), false);
+    QVERIFY2(shown.isValid(), qPrintable(shown.error().message()));
+
+    PreviewWindow *window = service.previewWindow();
+    QVERIFY(window);
+    QTRY_VERIFY(window->isVisible());
+    QCOMPARE(window->currentFile(), imagePath);
+    QVERIFY(window->showsMedia());
+    QCOMPARE(previewer.property("Visible").toBool(), true);
+
+    // Arrow keys hand the browsing order back to the file manager instead of
+    // paging locally, so the preview follows the order it displays.
+    QTest::keyClick(window, Qt::Key_Right);
+    QTRY_COMPARE(recorder.directions.size(), 1);
+    QCOMPARE(recorder.directions.constFirst(), uint(PreviewWindow::Right));
+    QTest::keyClick(window, Qt::Key_Up);
+    QTRY_COMPARE(recorder.directions.size(), 2);
+    QCOMPARE(recorder.directions.at(1), uint(PreviewWindow::Up));
+
+    // The preview key pressed again on the same file dismisses the preview.
+    QDBusReply<void> toggled = previewer.call(QStringLiteral("ShowFile"), uri,
+                                              QString(), true);
+    QVERIFY(toggled.isValid());
+    QTRY_VERIFY(!window->isVisible());
+    QCOMPARE(previewer.property("Visible").toBool(), false);
+
+    // Escape closes it as well, and the legacy interface still works.
+    QDBusInterface legacy(serviceName, PreviewerService::objectPath(),
+                          QStringLiteral("org.gnome.NautilusPreviewer"), bus);
+    QDBusReply<void> legacyShown =
+        legacy.call(QStringLiteral("ShowFile"), uri, 0, false);
+    QVERIFY2(legacyShown.isValid(), qPrintable(legacyShown.error().message()));
+    QTRY_VERIFY(window->isVisible());
+    QTest::keyClick(window, Qt::Key_Escape);
+    QTRY_VERIFY(!window->isVisible());
+}
+
+void FlashViewTests::previewServiceDegradesInsteadOfFailing()
+{
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.isConnected())
+        QSKIP("No session bus available for the preview service");
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString textPath = directory.filePath(QStringLiteral("notes.txt"));
+    QFile notes(textPath);
+    QVERIFY(notes.open(QIODevice::WriteOnly));
+    notes.write("not a medium");
+    notes.close();
+
+    {
+        PreviewerService service;
+        service.setIdleTimeoutMinutes(0);
+        QCOMPARE(service.registerOnBus(
+                     nullptr, QStringLiteral("org.gnome.NautilusPreviewer.FlashViewFallback")),
+                 PreviewerService::Registration::Registered);
+
+        // A file the viewer cannot decode, a location it cannot reach and a
+        // file that disappeared must all end in an explanation, never in a
+        // crash or an empty frame.
+        service.showFile(QUrl::fromLocalFile(textPath).toString(), QString(), false);
+        PreviewWindow *window = service.previewWindow();
+        QVERIFY(window);
+        QVERIFY(!window->showsMedia());
+        QVERIFY(service.isVisible());
+
+        service.showFile(QStringLiteral("sftp://example.invalid/photo.png"), QString(), false);
+        QVERIFY(!window->showsMedia());
+
+        service.showFile(
+            QUrl::fromLocalFile(directory.filePath(QStringLiteral("gone.png"))).toString(),
+            QString(), false);
+        QVERIFY(!window->showsMedia());
+
+        // An unusable window handle must not stop the preview from appearing.
+        const QString imagePath = directory.filePath(QStringLiteral("ok.png"));
+        QImage image(64, 64, QImage::Format_RGB32);
+        image.fill(Qt::darkCyan);
+        QVERIFY(image.save(imagePath));
+        service.showFile(QUrl::fromLocalFile(imagePath).toString(),
+                         QStringLiteral("wayland:nonsense"), false);
+        QVERIFY(window->showsMedia());
+
+        service.closePreview();
+        QVERIFY(!service.isVisible());
+    }
+
+    // A name another previewer already owns is left alone, and the caller is
+    // told why instead of ending up half-registered.
+    const QString takenName = QStringLiteral("org.gnome.NautilusPreviewer.FlashViewTaken");
+    const QString rivalConnection = QStringLiteral("flashview-rival-previewer");
+    // A separate connection stands in for the other previewer: claiming the
+    // name twice on one connection would simply succeed.
+    QDBusConnection rival =
+        QDBusConnection::connectToBus(QDBusConnection::SessionBus, rivalConnection);
+    QVERIFY(rival.isConnected());
+    QVERIFY(rival.registerService(takenName));
+
+    PreviewerService blocked;
+    blocked.setIdleTimeoutMinutes(0);
+    QString message;
+    QCOMPARE(blocked.registerOnBus(&message, takenName),
+             PreviewerService::Registration::NameTaken);
+    QVERIFY(!message.isEmpty());
+
+    rival.unregisterService(takenName);
+    QDBusConnection::disconnectFromBus(rivalConnection);
+}
+#endif
 
 void FlashViewTests::generateDocumentationScreenshots()
 {
