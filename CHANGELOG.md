@@ -8,6 +8,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `Delete` removes the current file by moving it to the trash, with an optional
+  confirmation prompt that is off by default and a remappable shortcut.
+- A pinned browsing order, selectable by name, modified time, created time, file
+  size or file type, ascending or descending, from Settings or the View menu, so
+  the viewer, the thumbnail bar and wheel paging always follow the same sequence.
 - Auto, Smooth and Nearest Neighbor scaling modes, including lightweight
   pixel-art detection and deferred background resampling for static images.
 - Runtime image-format discovery, content/MIME probing and startup warnings for

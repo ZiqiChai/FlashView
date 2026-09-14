@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QSettings>
 #include <QStandardItemModel>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolBar>
@@ -36,6 +37,8 @@ private slots:
     void wheelZoomSettingWorksInsideTheViewer();
     void thumbnailsLoadProgressively();
     void mainWindowTracksFolderChanges();
+    void browsingOrderFollowsTheChosenSortKey();
+    void deleteKeyRemovesTheFileAndShowsTheNextOne();
     void toolbarActionsHaveClearVisualSemantics();
     void generateDocumentationScreenshots();
 
@@ -295,6 +298,142 @@ void FlashViewTests::mainWindowTracksFolderChanges()
     QVERIFY(QFile::remove(image10));
     QTRY_VERIFY_WITH_TIMEOUT(!viewer->hasImage(), 3000);
     QCOMPARE(thumbnailBar->currentIndex(), -1);
+}
+
+void FlashViewTests::browsingOrderFollowsTheChosenSortKey()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+
+    // "newest" is deliberately the last name alphabetically and the smallest
+    // file, so every sort key produces a distinguishable order.
+    const QDateTime base(QDate(2024, 5, 1), QTime(12, 0));
+    const QVector<QPair<QString, int>> files = {
+        {QStringLiteral("alpha.png"), 400},
+        {QStringLiteral("bravo.png"), 200},
+        {QStringLiteral("newest.png"), 60}
+    };
+    for (int i = 0; i < files.size(); ++i) {
+        QImage image(files.at(i).second, files.at(i).second, QImage::Format_RGB32);
+        image.fill(QColor::fromHsv(i * 90, 200, 210));
+        const QString path = directory.filePath(files.at(i).first);
+        QVERIFY(image.save(path));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadWrite));
+        QVERIFY(file.setFileTime(base.addDays(i * 3),
+                                 QFileDevice::FileModificationTime));
+    }
+
+    const QDir dir(directory.path());
+    const QStringList names = {QStringLiteral("bravo.png"),
+                               QStringLiteral("newest.png"),
+                               QStringLiteral("alpha.png")};
+
+    QStringList sorted = names;
+    MediaUtils::sortFiles(dir, sorted, MediaUtils::SortKey::Name, false);
+    QCOMPARE(sorted, QStringList({QStringLiteral("alpha.png"),
+                                  QStringLiteral("bravo.png"),
+                                  QStringLiteral("newest.png")}));
+
+    sorted = names;
+    MediaUtils::sortFiles(dir, sorted, MediaUtils::SortKey::Name, true);
+    QCOMPARE(sorted, QStringList({QStringLiteral("newest.png"),
+                                  QStringLiteral("bravo.png"),
+                                  QStringLiteral("alpha.png")}));
+
+    sorted = names;
+    MediaUtils::sortFiles(dir, sorted, MediaUtils::SortKey::ModifiedTime, true);
+    QCOMPARE(sorted, QStringList({QStringLiteral("newest.png"),
+                                  QStringLiteral("bravo.png"),
+                                  QStringLiteral("alpha.png")}));
+
+    sorted = names;
+    MediaUtils::sortFiles(dir, sorted, MediaUtils::SortKey::Size, false);
+    QCOMPARE(sorted.first(), QStringLiteral("newest.png"));
+
+    // The pinned order is what the window browses with, so the file opened
+    // first and the wheel neighbours match the order shown in the thumbnails.
+    QSettings settings;
+    settings.setValue("sortKey", int(MediaUtils::SortKey::ModifiedTime));
+    settings.setValue("sortDescending", true);
+    settings.sync();
+
+    MainWindow window;
+    window.openDirectory(directory.path());
+    auto *viewer = window.findChild<ImageViewer *>();
+    QVERIFY(viewer);
+    QVERIFY(viewer->currentFile().endsWith(QStringLiteral("newest.png")));
+
+    settings.remove("sortKey");
+    settings.remove("sortDescending");
+    settings.sync();
+}
+
+void FlashViewTests::deleteKeyRemovesTheFileAndShowsTheNextOne()
+{
+    // The trash lives on the home volume; prefer a folder there so deleting
+    // does not fall back to a confirmation this test cannot answer.
+    QTemporaryDir homeDirectory(QDir::homePath() + QStringLiteral("/flashview-test-"));
+    QTemporaryDir tempDirectory;
+    QTemporaryDir &directory =
+        homeDirectory.isValid() ? homeDirectory : tempDirectory;
+    QVERIFY(directory.isValid());
+
+    QFile probe(directory.filePath(QStringLiteral("probe.bin")));
+    QVERIFY(probe.open(QIODevice::WriteOnly));
+    probe.write("probe");
+    probe.close();
+    if (!probe.moveToTrash())
+        QSKIP("This filesystem offers no trash folder");
+    QFile::remove(probe.fileName());
+
+    QImage image(48, 36, QImage::Format_RGB32);
+    image.fill(QColor(74, 128, 224));
+    const QStringList names = {QStringLiteral("one.png"),
+                               QStringLiteral("two.png")};
+    for (const QString &name : names)
+        QVERIFY(image.save(directory.filePath(name)));
+
+    QSettings settings;
+    settings.setValue("confirmDelete", false);
+    settings.sync();
+
+    MainWindow window;
+    window.openDirectory(directory.path());
+    auto *viewer = window.findChild<ImageViewer *>();
+    auto *thumbnailBar = window.findChild<ThumbnailBar *>();
+    QVERIFY(viewer);
+    QVERIFY(thumbnailBar);
+    QVERIFY(viewer->currentFile().endsWith(QStringLiteral("one.png")));
+
+    QAction *deleteAction = nullptr;
+    for (QAction *action : window.findChildren<QAction *>()) {
+        if (action->shortcut() == QKeySequence(QKeySequence::Delete))
+            deleteAction = action;
+    }
+    QVERIFY(deleteAction);
+    QVERIFY(deleteAction->isEnabled());
+
+    deleteAction->trigger();
+    QVERIFY(!QFile::exists(directory.filePath(QStringLiteral("one.png"))));
+    QTRY_VERIFY_WITH_TIMEOUT(
+        viewer->currentFile().endsWith(QStringLiteral("two.png")), 3000);
+
+    deleteAction->trigger();
+    QTRY_VERIFY_WITH_TIMEOUT(!viewer->hasImage(), 3000);
+    QCOMPARE(thumbnailBar->currentIndex(), -1);
+    QVERIFY(!deleteAction->isEnabled());
+
+    // Leave the user's trash as clean as the test found it.
+    const QString trash = QStandardPaths::writableLocation(
+        QStandardPaths::GenericDataLocation) + QStringLiteral("/Trash");
+    for (const QString &name : names) {
+        QFile::remove(trash + QStringLiteral("/files/") + name);
+        QFile::remove(trash + QStringLiteral("/info/") + name
+                      + QStringLiteral(".trashinfo"));
+    }
+    settings.remove("confirmDelete");
+    settings.sync();
 }
 
 void FlashViewTests::toolbarActionsHaveClearVisualSemantics()

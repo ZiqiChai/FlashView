@@ -6,7 +6,9 @@
 #include "SettingsDialog.h"
 #include "ThemeManager.h"
 
+#include <QActionGroup>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QToolBar>
 #include <QFileDialog>
 #include <QKeyEvent>
@@ -215,6 +217,43 @@ void MainWindow::setupActions()
     m_thumbAction->setShortcut(Qt::Key_T);
     connect(m_thumbAction, &QAction::triggered, this, &MainWindow::onToggleThumbnails);
 
+    m_deleteAction = new QAction(tr("&Delete"), this);
+    m_deleteAction->setShortcut(QKeySequence::Delete);
+    connect(m_deleteAction, &QAction::triggered, this, &MainWindow::onDeleteFile);
+
+    // Sorting is pinned by the user: a file manager's own order is private to
+    // it, so matching it automatically is not possible.
+    auto *sortGroup = new QActionGroup(this);
+    sortGroup->setExclusive(true);
+    const QStringList sortNames = {tr("&Name"), tr("&Modified Time"),
+                                   tr("&Created Time"), tr("&File Size"),
+                                   tr("File &Type")};
+    m_sortKeyActions.clear();
+    for (int key = 0; key < sortNames.size(); ++key) {
+        auto *action = new QAction(sortNames.at(key), this);
+        action->setCheckable(true);
+        action->setActionGroup(sortGroup);
+        connect(action, &QAction::triggered, this, [this, key] {
+            applySortOrder(key, m_sortDescending);
+        });
+        m_sortKeyActions.append(action);
+    }
+
+    auto *orderGroup = new QActionGroup(this);
+    orderGroup->setExclusive(true);
+    m_sortAscendingAction = new QAction(tr("&Ascending"), this);
+    m_sortAscendingAction->setCheckable(true);
+    m_sortAscendingAction->setActionGroup(orderGroup);
+    connect(m_sortAscendingAction, &QAction::triggered, this, [this] {
+        applySortOrder(m_sortKey, false);
+    });
+    m_sortDescendingAction = new QAction(tr("D&escending"), this);
+    m_sortDescendingAction->setCheckable(true);
+    m_sortDescendingAction->setActionGroup(orderGroup);
+    connect(m_sortDescendingAction, &QAction::triggered, this, [this] {
+        applySortOrder(m_sortKey, true);
+    });
+
     m_settingsAction = new QAction(tr("&Settings..."), this);
     m_settingsAction->setShortcut(QKeySequence::Preferences);
     connect(m_settingsAction, &QAction::triggered, this, &MainWindow::onSettings);
@@ -314,6 +353,15 @@ void MainWindow::setupMenuBar()
     viewMenu->addSeparator();
     viewMenu->addAction(m_fullscreenAction);
     viewMenu->addAction(m_thumbAction);
+    viewMenu->addSeparator();
+    QMenu *sortSubMenu = viewMenu->addMenu(tr("S&ort By"));
+    for (QAction *action : std::as_const(m_sortKeyActions))
+        sortSubMenu->addAction(action);
+    sortSubMenu->addSeparator();
+    sortSubMenu->addAction(m_sortAscendingAction);
+    sortSubMenu->addAction(m_sortDescendingAction);
+    viewMenu->addSeparator();
+    viewMenu->addAction(m_deleteAction);
 
     // Settings menu (contains theme, language, preferences)
     QMenu *settingsMenu = mb->addMenu(tr("&Settings"));
@@ -360,6 +408,7 @@ void MainWindow::setupToolBar()
     registerIcon(m_rotateRightAction, QStringLiteral("rotate-right"));
     registerIcon(m_fullscreenAction, QStringLiteral("fullscreen"));
     registerIcon(m_thumbAction, QStringLiteral("thumbnails"));
+    registerIcon(m_deleteAction, QStringLiteral("delete"));
     registerIcon(m_settingsAction, QStringLiteral("settings"));
 
     tb->addAction(m_openFileAction);
@@ -377,6 +426,8 @@ void MainWindow::setupToolBar()
     tb->addSeparator();
     tb->addAction(m_fullscreenAction);
     tb->addAction(m_thumbAction);
+    tb->addSeparator();
+    tb->addAction(m_deleteAction);
 
     refreshActionTooltips();
 }
@@ -476,6 +527,19 @@ QIcon MainWindow::glyphIcon(const QString &name, const QColor &color) const
         p.drawRoundedRect(QRectF(2.5, 6, 19, 12), 1.5, 1.5);
         p.drawLine(QPointF(8.8, 6), QPointF(8.8, 18));
         p.drawLine(QPointF(15.2, 6), QPointF(15.2, 18));
+    } else if (name == QStringLiteral("delete")) {
+        p.drawLine(QPointF(3.5, 6.5), QPointF(20.5, 6.5));
+        p.drawLine(QPointF(9, 6.5), QPointF(9, 3.5));
+        p.drawLine(QPointF(9, 3.5), QPointF(15, 3.5));
+        p.drawLine(QPointF(15, 3.5), QPointF(15, 6.5));
+        QPainterPath bin;
+        bin.moveTo(5.5, 6.5);
+        bin.lineTo(6.8, 20.5);
+        bin.lineTo(17.2, 20.5);
+        bin.lineTo(18.5, 6.5);
+        p.drawPath(bin);
+        p.drawLine(QPointF(10, 10), QPointF(10.4, 17));
+        p.drawLine(QPointF(14, 10), QPointF(13.6, 17));
     } else if (name == QStringLiteral("exit")) {
         p.drawLine(QPointF(10, 3), QPointF(4, 3));
         p.drawLine(QPointF(4, 3), QPointF(4, 21));
@@ -637,6 +701,61 @@ void MainWindow::onThumbnailSelected(int index)
     loadFile(index);
 }
 
+void MainWindow::onDeleteFile()
+{
+    if (m_currentIndex < 0 || m_currentIndex >= m_fileList.size())
+        return;
+
+    const int deletedIndex = m_currentIndex;
+    const QString fileName = m_fileList[deletedIndex];
+    const QString filePath = m_currentDir.absoluteFilePath(fileName);
+
+    if (m_confirmDelete
+        && QMessageBox::question(
+               this, tr("Delete File"),
+               tr("Move \"%1\" to the trash?").arg(fileName),
+               QMessageBox::Yes | QMessageBox::No, QMessageBox::No)
+           != QMessageBox::Yes) {
+        return;
+    }
+
+    // Release the file first: a playing video keeps its handle open, which
+    // makes the removal fail or leaves the player pointing at a ghost.
+    m_videoPlayer->stop();
+
+    QFile file(filePath);
+    if (!file.moveToTrash()) {
+        // Volumes without a trash folder cannot hold the file for recovery,
+        // so ask before removing it for good, whatever the confirm setting is.
+        if (QMessageBox::warning(
+                this, tr("Delete File"),
+                tr("\"%1\" cannot be moved to the trash. Delete it permanently?")
+                    .arg(fileName),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::No)
+            != QMessageBox::Yes) {
+            return;
+        }
+        if (!file.remove()) {
+            m_statusBar->showMessage(
+                tr("Could not delete %1: %2").arg(fileName, file.errorString()), 5000);
+            return;
+        }
+    }
+
+    // Update immediately rather than waiting for the folder watcher, so the
+    // next file appears the moment the key is released.
+    m_fileList.removeAt(deletedIndex);
+    m_currentLoadedPath.clear();
+    m_thumbnailBar->setDirectory(m_currentDir.absolutePath(), m_fileList);
+    if (m_fileList.isEmpty()) {
+        clearCurrentView(tr("No supported media files in this folder"),
+                         tr("Drop a file here or choose another folder"));
+    } else {
+        loadFile(qMin(deletedIndex, m_fileList.size() - 1));
+    }
+    m_statusBar->showMessage(tr("Deleted %1").arg(fileName), 3000);
+}
+
 void MainWindow::onSettings()
 {
     SettingsDialog dlg(this);
@@ -646,6 +765,9 @@ void MainWindow::onSettings()
     dlg.setThumbnailsVisible(m_thumbnailsVisible);
     dlg.setWheelZoomEnabled(m_wheelZoomMode);
     dlg.setInterpolationMode(m_interpolationMode);
+    dlg.setSortKey(m_sortKey);
+    dlg.setSortDescending(m_sortDescending);
+    dlg.setConfirmDelete(m_confirmDelete);
 
     dlg.setKeyNext(m_nextAction->shortcut());
     dlg.setKeyPrev(m_prevAction->shortcut());
@@ -656,6 +778,7 @@ void MainWindow::onSettings()
     dlg.setKeyRotateLeft(m_rotateLeftAction->shortcut());
     dlg.setKeyRotateRight(m_rotateRightAction->shortcut());
     dlg.setKeyFullscreen(m_fullscreenAction->shortcut());
+    dlg.setKeyDelete(m_deleteAction->shortcut());
 
     if (dlg.exec() == QDialog::Accepted) {
         // Apply language
@@ -684,6 +807,10 @@ void MainWindow::onSettings()
         m_imageViewer->setInterpolationMode(
             static_cast<ImageViewer::InterpolationMode>(m_interpolationMode));
 
+        // Browsing order and delete confirmation
+        m_confirmDelete = dlg.confirmDelete();
+        applySortOrder(dlg.sortKey(), dlg.sortDescending(), false);
+
         // Shortcuts
         m_nextAction->setShortcut(dlg.keyNext());
         m_prevAction->setShortcut(dlg.keyPrev());
@@ -694,6 +821,7 @@ void MainWindow::onSettings()
         m_rotateLeftAction->setShortcut(dlg.keyRotateLeft());
         m_rotateRightAction->setShortcut(dlg.keyRotateRight());
         m_fullscreenAction->setShortcut(dlg.keyFullscreen());
+        m_deleteAction->setShortcut(dlg.keyDelete());
 
         refreshActionTooltips();
         saveSettings();
@@ -836,8 +964,46 @@ void MainWindow::updateFileList()
         if (MediaUtils::isSupportedFile(m_currentDir.absoluteFilePath(entry)))
             m_fileList.append(entry);
     }
-    MediaUtils::naturalSort(m_fileList);
+    MediaUtils::sortFiles(m_currentDir, m_fileList,
+                          MediaUtils::sortKeyFromInt(m_sortKey), m_sortDescending);
     m_thumbnailBar->setDirectory(m_currentDir.absolutePath(), m_fileList);
+}
+
+void MainWindow::applySortOrder(int sortKey, bool descending, bool persist)
+{
+    m_sortKey = qBound(0, sortKey, static_cast<int>(MediaUtils::SortKey::Type));
+    m_sortDescending = descending;
+    updateSortActions();
+
+    if (!m_fileList.isEmpty()) {
+        // Reordering must not change which file is on screen, only its place
+        // in the sequence.
+        const QString currentName =
+            m_currentIndex >= 0 && m_currentIndex < m_fileList.size()
+            ? m_fileList[m_currentIndex] : QString();
+        updateFileList();
+        const int preservedIndex = m_fileList.indexOf(currentName);
+        if (preservedIndex >= 0) {
+            m_currentIndex = preservedIndex;
+            m_thumbnailBar->setCurrentIndex(preservedIndex);
+            updateStatusBar();
+            updateActions();
+        } else {
+            m_currentLoadedPath.clear();
+            loadFile(qBound(0, m_currentIndex, m_fileList.size() - 1));
+        }
+    }
+
+    if (persist)
+        saveSettings();
+}
+
+void MainWindow::updateSortActions()
+{
+    for (int key = 0; key < m_sortKeyActions.size(); ++key)
+        m_sortKeyActions[key]->setChecked(key == m_sortKey);
+    m_sortAscendingAction->setChecked(!m_sortDescending);
+    m_sortDescendingAction->setChecked(m_sortDescending);
 }
 
 void MainWindow::refreshDirectoryContents()
@@ -948,6 +1114,7 @@ void MainWindow::updateActions()
     m_rotateLeftAction->setEnabled(hasImage);
     m_rotateRightAction->setEnabled(hasImage);
     m_thumbAction->setEnabled(!m_fileList.isEmpty());
+    m_deleteAction->setEnabled(hasSelection);
     m_zoomLabel->setCursor(hasImage ? Qt::PointingHandCursor : Qt::ArrowCursor);
 }
 
@@ -993,7 +1160,15 @@ void MainWindow::retranslateUi()
     m_rotateRightAction->setText(tr("Rotate &Right"));
     m_fullscreenAction->setText(tr("F&ullscreen"));
     m_thumbAction->setText(tr("Thumbnail &Bar"));
+    m_deleteAction->setText(tr("&Delete"));
     m_settingsAction->setText(tr("&Settings..."));
+    const QStringList sortNames = {tr("&Name"), tr("&Modified Time"),
+                                   tr("&Created Time"), tr("&File Size"),
+                                   tr("File &Type")};
+    for (int key = 0; key < m_sortKeyActions.size(); ++key)
+        m_sortKeyActions[key]->setText(sortNames.at(key));
+    m_sortAscendingAction->setText(tr("&Ascending"));
+    m_sortDescendingAction->setText(tr("D&escending"));
     m_darkThemeAction->setText(tr("&Dark Theme"));
     m_lightThemeAction->setText(tr("&Light Theme"));
     // Language entries stay self-named in their own language.
@@ -1050,6 +1225,11 @@ void MainWindow::loadSettings()
     m_interpolationMode = qBound(0, s.value("interpolationMode", 0).toInt(), 2);
     m_imageViewer->setInterpolationMode(
         static_cast<ImageViewer::InterpolationMode>(m_interpolationMode));
+    m_sortKey = qBound(0, s.value("sortKey", 0).toInt(),
+                       static_cast<int>(MediaUtils::SortKey::Type));
+    m_sortDescending = s.value("sortDescending", false).toBool();
+    m_confirmDelete = s.value("confirmDelete", false).toBool();
+    updateSortActions();
 
     m_thumbnailBar->setVisible(m_thumbnailsVisible);
 
@@ -1063,6 +1243,7 @@ void MainWindow::loadSettings()
     m_rotateLeftAction->setShortcut(s.value("keyRotateLeft", QKeySequence("Ctrl+L")).value<QKeySequence>());
     m_rotateRightAction->setShortcut(s.value("keyRotateRight", QKeySequence("Ctrl+R")).value<QKeySequence>());
     m_fullscreenAction->setShortcut(s.value("keyFullscreen", QKeySequence(Qt::Key_F11)).value<QKeySequence>());
+    m_deleteAction->setShortcut(s.value("keyDelete", QKeySequence(QKeySequence::Delete)).value<QKeySequence>());
     refreshActionTooltips();
 
     // Restore window geometry
@@ -1082,6 +1263,9 @@ void MainWindow::saveSettings()
     s.setValue("thumbnailsVisible", m_thumbnailsVisible);
     s.setValue("wheelZoomMode", m_wheelZoomMode);
     s.setValue("interpolationMode", m_interpolationMode);
+    s.setValue("sortKey", m_sortKey);
+    s.setValue("sortDescending", m_sortDescending);
+    s.setValue("confirmDelete", m_confirmDelete);
     s.setValue("keyNext", m_nextAction->shortcut());
     s.setValue("keyPrev", m_prevAction->shortcut());
     s.setValue("keyZoomIn", m_zoomInAction->shortcut());
@@ -1091,6 +1275,7 @@ void MainWindow::saveSettings()
     s.setValue("keyRotateLeft", m_rotateLeftAction->shortcut());
     s.setValue("keyRotateRight", m_rotateRightAction->shortcut());
     s.setValue("keyFullscreen", m_fullscreenAction->shortcut());
+    s.setValue("keyDelete", m_deleteAction->shortcut());
     const bool fullscreenSnapshot =
         isFullScreen() && !m_normalGeometry.isEmpty() && !m_normalWindowState.isEmpty();
     s.setValue("geometry", fullscreenSnapshot ? m_normalGeometry : saveGeometry());

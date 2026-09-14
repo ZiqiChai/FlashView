@@ -61,8 +61,12 @@ prefix you used to install:
 
 ## Browsing and display
 
-- **Folder browsing:** natural filename order (`photo2` before `photo10`), live
-  folder updates, mouse-wheel paging and file/folder drag and drop.
+- **Folder browsing:** a pinned browsing order (name, modified time, created
+  time, file size or file type, ascending or descending) with natural filename
+  order as the default (`photo2` before `photo10`), live folder updates,
+  mouse-wheel paging and file/folder drag and drop.
+- **File management:** `Delete` moves the current file to the trash, with an
+  optional confirmation prompt (off by default).
 - **Responsive previews:** background neighbour preloading, pixmap caching and
   progressive thumbnail decoding, with a horizontally scrolling filmstrip.
 - **Image viewing:** smooth zoom and fade transitions, cursor-anchored
@@ -133,6 +137,7 @@ image fits. General settings can change the wheel to zoom instead.
 | Adjust video volume | `Ctrl` + mouse wheel |
 | Fullscreen | `F11` |
 | Thumbnail bar | `T` |
+| Delete current file (to trash) | `Delete` |
 | Open file / directory | `Ctrl+O` / `Ctrl+Shift+O` |
 | Settings | `Ctrl+,` |
 

@@ -13,7 +13,8 @@
 SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
 {
     setWindowTitle(tr("Settings"));
-    setMinimumSize(480, 400);
+    // Tall enough for every shortcut row to stay visible without scrolling.
+    setMinimumSize(480, 470);
     setupUI();
 }
 
@@ -67,6 +68,28 @@ void SettingsDialog::setupUI()
         tr("High-quality resampling runs in the background after zooming stops."));
     generalLayout->addRow(tr("Scaling quality:"), m_interpolationCombo);
 
+    // Keep the order of the entries in sync with MediaUtils::SortKey.
+    m_sortKeyCombo = new QComboBox;
+    m_sortKeyCombo->addItem(tr("Name"));
+    m_sortKeyCombo->addItem(tr("Modified time"));
+    m_sortKeyCombo->addItem(tr("Created time"));
+    m_sortKeyCombo->addItem(tr("File size"));
+    m_sortKeyCombo->addItem(tr("File type"));
+    m_sortKeyCombo->setToolTip(
+        tr("Browsing order of the folder. A file manager does not share its "
+           "own order, so pin the one you prefer here."));
+    generalLayout->addRow(tr("Sort by:"), m_sortKeyCombo);
+
+    m_sortOrderCombo = new QComboBox;
+    m_sortOrderCombo->addItem(tr("Ascending"));
+    m_sortOrderCombo->addItem(tr("Descending"));
+    generalLayout->addRow(tr("Sort order:"), m_sortOrderCombo);
+
+    m_confirmDeleteCheck = new QCheckBox(tr("Ask before deleting a file"));
+    m_confirmDeleteCheck->setToolTip(
+        tr("Deleted files are moved to the trash."));
+    generalLayout->addRow("", m_confirmDeleteCheck);
+
     m_tabs->addTab(generalTab, tr("General"));
 
     // Keys tab
@@ -102,6 +125,9 @@ void SettingsDialog::setupUI()
     m_keyFullscreen = new QKeySequenceEdit;
     keysLayout->addRow(tr("Fullscreen:"), m_keyFullscreen);
 
+    m_keyDelete = new QKeySequenceEdit;
+    keysLayout->addRow(tr("Delete file:"), m_keyDelete);
+
     m_tabs->addTab(keysTab, tr("Shortcuts"));
 
     mainLayout->addWidget(m_tabs);
@@ -119,6 +145,9 @@ void SettingsDialog::setupUI()
         m_thumbCheck->setChecked(true);
         m_wheelZoomCheck->setChecked(false);
         m_interpolationCombo->setCurrentIndex(0);
+        m_sortKeyCombo->setCurrentIndex(0);
+        m_sortOrderCombo->setCurrentIndex(0);
+        m_confirmDeleteCheck->setChecked(false);
         setKeyNext(QKeySequence(Qt::Key_Right));
         setKeyPrev(QKeySequence(Qt::Key_Left));
         setKeyZoomIn(QKeySequence::ZoomIn);
@@ -128,6 +157,7 @@ void SettingsDialog::setupUI()
         setKeyRotateLeft(QKeySequence(QStringLiteral("Ctrl+L")));
         setKeyRotateRight(QKeySequence(QStringLiteral("Ctrl+R")));
         setKeyFullscreen(QKeySequence(Qt::Key_F11));
+        setKeyDelete(QKeySequence(QKeySequence::Delete));
     });
     mainLayout->addWidget(buttonBox);
 }
@@ -143,7 +173,8 @@ void SettingsDialog::accept()
         {tr("Actual size"), keyActualSize()},
         {tr("Rotate left"), keyRotateLeft()},
         {tr("Rotate right"), keyRotateRight()},
-        {tr("Fullscreen"), keyFullscreen()}
+        {tr("Fullscreen"), keyFullscreen()},
+        {tr("Delete file"), keyDelete()}
     };
 
     QHash<QString, QString> owners;
@@ -175,6 +206,9 @@ QColor SettingsDialog::backgroundColor() const { return m_bgColor; }
 bool SettingsDialog::thumbnailsVisible() const { return m_thumbCheck->isChecked(); }
 bool SettingsDialog::wheelZoomEnabled() const { return m_wheelZoomCheck->isChecked(); }
 int SettingsDialog::interpolationMode() const { return m_interpolationCombo->currentIndex(); }
+int SettingsDialog::sortKey() const { return m_sortKeyCombo->currentIndex(); }
+bool SettingsDialog::sortDescending() const { return m_sortOrderCombo->currentIndex() == 1; }
+bool SettingsDialog::confirmDelete() const { return m_confirmDeleteCheck->isChecked(); }
 
 void SettingsDialog::setLanguageIndex(int idx) { m_langCombo->setCurrentIndex(idx); }
 void SettingsDialog::setThemeIndex(int idx) { m_themeCombo->setCurrentIndex(idx); }
@@ -189,6 +223,13 @@ void SettingsDialog::setWheelZoomEnabled(bool v) { m_wheelZoomCheck->setChecked(
 void SettingsDialog::setInterpolationMode(int mode) {
     m_interpolationCombo->setCurrentIndex(qBound(0, mode, 2));
 }
+void SettingsDialog::setSortKey(int key) {
+    m_sortKeyCombo->setCurrentIndex(qBound(0, key, m_sortKeyCombo->count() - 1));
+}
+void SettingsDialog::setSortDescending(bool descending) {
+    m_sortOrderCombo->setCurrentIndex(descending ? 1 : 0);
+}
+void SettingsDialog::setConfirmDelete(bool v) { m_confirmDeleteCheck->setChecked(v); }
 
 QKeySequence SettingsDialog::keyNext() const { return m_keyNext->keySequence(); }
 QKeySequence SettingsDialog::keyPrev() const { return m_keyPrev->keySequence(); }
@@ -199,6 +240,7 @@ QKeySequence SettingsDialog::keyActualSize() const { return m_keyActualSize->key
 QKeySequence SettingsDialog::keyRotateLeft() const { return m_keyRotateLeft->keySequence(); }
 QKeySequence SettingsDialog::keyRotateRight() const { return m_keyRotateRight->keySequence(); }
 QKeySequence SettingsDialog::keyFullscreen() const { return m_keyFullscreen->keySequence(); }
+QKeySequence SettingsDialog::keyDelete() const { return m_keyDelete->keySequence(); }
 
 void SettingsDialog::setKeyNext(const QKeySequence &ks) { m_keyNext->setKeySequence(ks); }
 void SettingsDialog::setKeyPrev(const QKeySequence &ks) { m_keyPrev->setKeySequence(ks); }
@@ -209,3 +251,4 @@ void SettingsDialog::setKeyActualSize(const QKeySequence &ks) { m_keyActualSize-
 void SettingsDialog::setKeyRotateLeft(const QKeySequence &ks) { m_keyRotateLeft->setKeySequence(ks); }
 void SettingsDialog::setKeyRotateRight(const QKeySequence &ks) { m_keyRotateRight->setKeySequence(ks); }
 void SettingsDialog::setKeyFullscreen(const QKeySequence &ks) { m_keyFullscreen->setKeySequence(ks); }
+void SettingsDialog::setKeyDelete(const QKeySequence &ks) { m_keyDelete->setKeySequence(ks); }

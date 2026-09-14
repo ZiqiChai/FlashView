@@ -4,10 +4,6 @@
 <context>
     <name>ImageViewer</name>
     <message>
-        <source>Open a file (Ctrl+O) or drop an image here</source>
-        <translation type="vanished">打开文件 (Ctrl+O)，或将图片拖放到此处</translation>
-    </message>
-    <message>
         <source>This image could not be opened</source>
         <translation>无法打开此图片</translation>
     </message>
@@ -178,6 +174,62 @@
         <source>Limited media support; missing decoders: %1</source>
         <translation>多媒体支持受限，缺少解码器：%1</translation>
     </message>
+    <message>
+        <source>&amp;Delete</source>
+        <translation>删除(&amp;D)</translation>
+    </message>
+    <message>
+        <source>&amp;Name</source>
+        <translation>名称(&amp;N)</translation>
+    </message>
+    <message>
+        <source>&amp;Modified Time</source>
+        <translation>修改时间(&amp;M)</translation>
+    </message>
+    <message>
+        <source>&amp;Created Time</source>
+        <translation>创建时间(&amp;C)</translation>
+    </message>
+    <message>
+        <source>&amp;File Size</source>
+        <translation>文件大小(&amp;F)</translation>
+    </message>
+    <message>
+        <source>File &amp;Type</source>
+        <translation>文件类型(&amp;T)</translation>
+    </message>
+    <message>
+        <source>&amp;Ascending</source>
+        <translation>升序(&amp;A)</translation>
+    </message>
+    <message>
+        <source>D&amp;escending</source>
+        <translation>降序(&amp;E)</translation>
+    </message>
+    <message>
+        <source>S&amp;ort By</source>
+        <translation>排序方式(&amp;O)</translation>
+    </message>
+    <message>
+        <source>Delete File</source>
+        <translation>删除文件</translation>
+    </message>
+    <message>
+        <source>Move &quot;%1&quot; to the trash?</source>
+        <translation>将“%1”移入回收站？</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; cannot be moved to the trash. Delete it permanently?</source>
+        <translation>“%1”无法移入回收站，是否永久删除？</translation>
+    </message>
+    <message>
+        <source>Could not delete %1: %2</source>
+        <translation>无法删除 %1：%2</translation>
+    </message>
+    <message>
+        <source>Deleted %1</source>
+        <translation>已删除 %1</translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>
@@ -328,6 +380,62 @@
     <message>
         <source>Scaling quality:</source>
         <translation>缩放质量：</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <source>Modified time</source>
+        <translation>修改时间</translation>
+    </message>
+    <message>
+        <source>Created time</source>
+        <translation>创建时间</translation>
+    </message>
+    <message>
+        <source>File size</source>
+        <translation>文件大小</translation>
+    </message>
+    <message>
+        <source>File type</source>
+        <translation>文件类型</translation>
+    </message>
+    <message>
+        <source>Browsing order of the folder. A file manager does not share its own order, so pin the one you prefer here.</source>
+        <translation>文件夹的浏览顺序。文件管理器不会共享自身的排序方式，可在此固定为常用顺序。</translation>
+    </message>
+    <message>
+        <source>Sort by:</source>
+        <translation>排序依据:</translation>
+    </message>
+    <message>
+        <source>Ascending</source>
+        <translation>升序</translation>
+    </message>
+    <message>
+        <source>Descending</source>
+        <translation>降序</translation>
+    </message>
+    <message>
+        <source>Sort order:</source>
+        <translation>排序顺序:</translation>
+    </message>
+    <message>
+        <source>Ask before deleting a file</source>
+        <translation>删除文件前确认</translation>
+    </message>
+    <message>
+        <source>Deleted files are moved to the trash.</source>
+        <translation>删除的文件会被移入回收站。</translation>
+    </message>
+    <message>
+        <source>Delete file:</source>
+        <translation>删除文件:</translation>
+    </message>
+    <message>
+        <source>Delete file</source>
+        <translation>删除文件</translation>
     </message>
 </context>
 <context>

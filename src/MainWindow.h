@@ -45,6 +45,7 @@ private slots:
     void onNextFile();
     void onPrevFile();
     void onThumbnailSelected(int index);
+    void onDeleteFile();
     void onSettings();
     void onToggleFullscreen();
     void onToggleThumbnails();
@@ -67,6 +68,8 @@ private:
     void watchCurrentFile(const QString &filePath);
     void clearCurrentView(const QString &title = QString(), const QString &details = QString());
     void updateActions();
+    void applySortOrder(int sortKey, bool descending, bool persist = true);
+    void updateSortActions();
     void refreshActionTooltips();
     void switchLanguage(int langIndex, bool persist = true);
     void retranslateUi();
@@ -103,7 +106,11 @@ private:
     QAction *m_rotateRightAction = nullptr;
     QAction *m_fullscreenAction = nullptr;
     QAction *m_thumbAction = nullptr;
+    QAction *m_deleteAction = nullptr;
     QAction *m_settingsAction = nullptr;
+    QVector<QAction *> m_sortKeyActions;   // one per MediaUtils::SortKey
+    QAction *m_sortAscendingAction = nullptr;
+    QAction *m_sortDescendingAction = nullptr;
     QAction *m_darkThemeAction = nullptr;
     QAction *m_lightThemeAction = nullptr;
     QAction *m_langZhAction = nullptr;
@@ -126,6 +133,9 @@ private:
     bool m_thumbnailsVisible = true;
     bool m_wheelZoomMode = false;
     int m_interpolationMode = 0;
+    int m_sortKey = 0;             // MediaUtils::SortKey
+    bool m_sortDescending = false;
+    bool m_confirmDelete = false;  // ask before deleting, off by default
     int m_language = 0; // 0=zh, 1=en
     QTranslator m_translator;
     QVector<QPair<QAction *, QString>> m_toolGlyphs; // toolbar glyphs, re-themed on theme change

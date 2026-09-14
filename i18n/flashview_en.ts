@@ -174,6 +174,62 @@
         <source>Limited media support; missing decoders: %1</source>
         <translation>Limited media support; missing decoders: %1</translation>
     </message>
+    <message>
+        <source>&amp;Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Modified Time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Created Time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;File Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File &amp;Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Ascending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>D&amp;escending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>S&amp;ort By</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Move &quot;%1&quot; to the trash?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; cannot be moved to the trash. Delete it permanently?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not delete %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deleted %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>SettingsDialog</name>
@@ -324,6 +380,62 @@
     <message>
         <source>Scaling quality:</source>
         <translation>Scaling quality:</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Modified time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Created time</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>File type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browsing order of the folder. A file manager does not share its own order, so pin the one you prefer here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort by:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ascending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Descending</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sort order:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Ask before deleting a file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deleted files are moved to the trash.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete file:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Delete file</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

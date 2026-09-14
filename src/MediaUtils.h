@@ -2,7 +2,10 @@
 #define MEDIAUTILS_H
 
 #include <QCollator>
+#include <QDateTime>
+#include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QImageReader>
 #include <QLocale>
 #include <QMimeDatabase>
@@ -227,6 +230,89 @@ inline void naturalSort(QStringList &fileNames)
             ++rightPos;
         }
         return leftPos == left.size() && rightPos < right.size();
+    });
+}
+
+// Browsing order of a folder. A file manager's own order is not exposed to
+// other applications, so the user pins the one they want instead.
+enum class SortKey {
+    Name = 0,
+    ModifiedTime = 1,
+    CreationTime = 2,
+    Size = 3,
+    Type = 4
+};
+
+inline SortKey sortKeyFromInt(int value)
+{
+    return value >= 0 && value <= static_cast<int>(SortKey::Type)
+        ? static_cast<SortKey>(value) : SortKey::Name;
+}
+
+// Creation time is not recorded by every filesystem; fall back to the closest
+// available timestamp so the order stays meaningful instead of arbitrary.
+inline QDateTime creationTime(const QFileInfo &info)
+{
+    const QDateTime born = info.birthTime();
+    if (born.isValid())
+        return born;
+    const QDateTime changed = info.metadataChangeTime();
+    return changed.isValid() ? changed : info.lastModified();
+}
+
+inline void sortFiles(const QDir &directory, QStringList &fileNames,
+                      SortKey key, bool descending)
+{
+    // Natural name order is the default and also the tie-breaker for the other
+    // keys, so files sharing a timestamp or size keep a predictable order.
+    naturalSort(fileNames);
+
+    if (key == SortKey::Name) {
+        if (descending)
+            std::reverse(fileNames.begin(), fileNames.end());
+        return;
+    }
+
+    // Stat every file once: querying inside the comparator would hit the
+    // filesystem O(n log n) times on large folders.
+    QHash<QString, qint64> numbers;
+    QHash<QString, QString> suffixes;
+    numbers.reserve(fileNames.size());
+    suffixes.reserve(fileNames.size());
+    for (const QString &name : std::as_const(fileNames)) {
+        const QFileInfo info(directory.absoluteFilePath(name));
+        switch (key) {
+        case SortKey::ModifiedTime:
+            numbers.insert(name, info.lastModified().toMSecsSinceEpoch());
+            break;
+        case SortKey::CreationTime:
+            numbers.insert(name, creationTime(info).toMSecsSinceEpoch());
+            break;
+        case SortKey::Size:
+            numbers.insert(name, info.size());
+            break;
+        case SortKey::Type:
+            suffixes.insert(name, info.suffix().toLower());
+            break;
+        case SortKey::Name:
+            break;
+        }
+    }
+
+    std::stable_sort(fileNames.begin(), fileNames.end(),
+                     [&](const QString &left, const QString &right) {
+        if (key == SortKey::Type) {
+            const int comparison =
+                QString::compare(suffixes.value(left), suffixes.value(right));
+            if (comparison == 0)
+                return false;
+            return descending ? comparison > 0 : comparison < 0;
+        }
+        const qint64 leftValue = numbers.value(left);
+        const qint64 rightValue = numbers.value(right);
+        if (leftValue == rightValue)
+            return false;
+        return descending ? leftValue > rightValue : leftValue < rightValue;
     });
 }
 
