@@ -2,17 +2,25 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md)
 
-A fast, lightweight image & video viewer for Linux, built with Qt 6.
+FlashView is a lightweight, fast, polished and broadly compatible image and
+video viewer for Linux, built with Qt 6. Browse a folder, check an image or
+video, and move on without waiting for a heavy editor to open. With **Quick
+Look**, pressing `Space` on a selected image or video in GNOME Files opens an
+instant preview.
 
-Browse folders with natural filename ordering, background thumbnail loading and
-keyboard or mouse navigation. Large images shrink to fit the window; small images
-stay at 100% until you choose to zoom in. The interface supports English and
-Simplified Chinese, with dark and light themes.
+## Product characteristics
+
+| Characteristic | What it feels like |
+| --- | --- |
+| **Lightweight** | Starts quickly, stays focused on viewing, and keeps video and high-quality processing work on demand. |
+| **Fast** | Makes folder browsing feel immediate with natural ordering, quick thumbnails, caching and nearby-image preloading. |
+| **Beautiful** | Offers a clean toolbar, balanced icons, dark/light themes, smooth transitions and a distraction-free fullscreen view. |
+| **Compatible** | Uses the image handlers and video codecs available on the system instead of limiting the viewer to a small built-in format list. |
 
 ## Screenshots
 
-The screenshots below show the **English interface**. Both themes are shown
-regardless of your browser's color scheme.
+The following captures show the **English interface**. Both themes are kept in
+the repository, together with matching View-menu captures.
 
 ### Dark theme
 
@@ -33,183 +41,186 @@ regardless of your browser's color scheme.
 
 ## Quick start
 
-Run these commands from the repository root on Debian/Ubuntu:
+On Debian/Ubuntu, run these two commands from the repository root:
 
 ```bash
-./scripts/install-deps.sh       # Install build tools and runtime plugins (sudo)
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-./build/flashview               # Open the application
-./build/flashview /path/to/image.png
-./build/flashview /path/to/folder
+./install.sh --deps --prefix ~/.local
+~/.local/bin/flashview /path/to/image-or-folder
 ```
 
-You can also drop a file or folder onto the window, or press `Ctrl+O` to open a
-file. To add FlashView to your application menu, install it for your user:
+If the dependencies are already installed, omit `--deps`. You can also drag a
+file or folder onto the window; `Ctrl+O` opens a file and `Ctrl+Shift+O` opens a
+folder.
 
-```bash
-./install.sh --prefix ~/.local
-```
+## Features
 
-For a system-wide install, use `./install.sh` (default prefix: `/usr/local`).
-`./install.sh --deps` installs dependencies first. To uninstall, pass the same
-prefix you used to install:
+### Quick Look: inspect before opening
 
-```bash
-./install.sh --uninstall --prefix ~/.local
-```
+When the optional preview service is installed, select an image or video in
+GNOME Files and press `Space`. FlashView displays a borderless overlay, keeps
+the file manager's own selection order, and supports:
 
-## Browsing and display
-
-- **Folder browsing:** a pinned browsing order (name, modified time, created
-  time, file size or file type, ascending or descending) with natural filename
-  order as the default (`photo2` before `photo10`), live folder updates,
-  mouse-wheel paging and file/folder drag and drop.
-- **File management:** `Delete` moves the current file to the trash, with an
-  optional confirmation prompt (off by default).
-- **Responsive previews:** background neighbour preloading, pixmap caching and
-  progressive thumbnail decoding, with a horizontally scrolling filmstrip.
-- **Image viewing:** smooth zoom and fade transitions, cursor-anchored
-  `Ctrl` + wheel zoom, rotation and double-click to switch between fit and 100%.
-  Automatic fitting shrinks large images without enlarging small ones.
-- **Video controls:** play/pause, seeking, volume and mute, with remembered audio
-  settings and playback error messages.
-- **Interface:** dark/light themes, English/Chinese labels, coordinated toolbar
-  and menu icons, plus fullscreen viewing with idle cursor hiding.
-
-### Scaling quality
-
-Choose **Settings → General → Scaling quality**:
-
-- **Auto (recommended)**: smooth scaling for ordinary images; small, low-color
-  images identified as pixel art use nearest neighbor when enlarged.
-- **Smooth (photos)**: smooth scaling for photos and gradients.
-- **Nearest neighbor (pixel art)**: keeps individual pixels sharply defined.
-
-Static-image resampling starts in the background about 180 ms after zooming
-stops. Animated images and very large images use realtime rendering to limit
-extra work and memory use. This improves display smoothness; it does not recover
-missing detail or perform AI upscaling. All modes preserve the default
-shrink-to-fit behavior, and manual zoom can exceed 100%.
-
-## File manager preview (optional)
-
-FlashView can answer the space-bar preview of GNOME Files: select an image or a
-video, press `Space`, and a borderless preview appears over the file manager.
-The arrow keys move the selection in Files itself, so the preview always follows
-the order the file manager shows, whatever that order is.
-
-| Action in the preview | Shortcut |
+| Quick Look action | Shortcut |
 | --- | --- |
-| Close | `Space`, `Esc` |
-| Previous / next file (moves the selection in Files) | `←` `→` `↑` `↓` |
+| Close | `Space` or `Esc` |
+| Ask the file manager for the previous/next selection | `←` `→` `↑` `↓` |
 | Open in the full FlashView window | `Enter` |
-| Fit to window / actual size | `F` / `1` |
+| Fit image / show actual size | `F` / `1` |
 
-The service is installed by default, and every part of it is optional:
+The preview service starts when needed and exits after ten idle minutes. It
+previews local files only. If the preview service is unavailable, the main
+FlashView viewer is unaffected. On Wayland, the overlay is centered instead of
+being attached to the file-manager window. Unsupported, missing or remote files
+receive an explanation and can still be handed to another application with
+`Enter`.
 
-- `./install.sh --no-previewer`, or `cmake -DFLASHVIEW_ENABLE_PREVIEWER=OFF`,
-  builds the viewer exactly as it was before.
-- Without the Qt 6 DBus module at configure time it is skipped automatically.
-- Without a session bus, or when another previewer such as `gnome-sushi`
-  already owns the service name, FlashView leaves the name alone and stays a
-  plain viewer.
-- Files it cannot decode, files that vanished and remote locations get a short
-  explanation, with `Enter` to hand the file to another application.
+Disable the optional integration with either `./install.sh --no-previewer` or
+`-DFLASHVIEW_ENABLE_PREVIEWER=OFF`.
 
-Known limits: the service starts on demand and exits after ten idle minutes;
-only local files are previewed; on Wayland the overlay cannot attach itself to
-the Files window, so it opens centred on the screen instead.
+### Fast folder browsing
+
+- Supported files are discovered from the installed Qt image handlers and the
+  system MIME database, with content probing for files whose suffix is missing
+  or misleading.
+- The default **natural filename order** puts `image2` before `image10`.
+  Settings and the View menu can pin name, modified time, created time, file
+  size or file type, each ascending or descending.
+- The current folder and current file are watched for additions, removals and
+  in-place replacements. The current item is preserved when possible.
+- Thumbnails decode progressively in the background. The filmstrip scrolls
+  horizontally and centers the selected item smoothly. Press `T` to show or
+  hide the bar.
+- `Delete` moves the current file to the desktop trash when possible. A
+  confirmation prompt is optional and off by default.
+
+### Image viewing and adaptive scaling
+
+- Large images fit the available window by shrinking; small images do **not**
+  enlarge automatically. `1` returns to 100%, while explicit zoom can range
+  from 2% to 10000%.
+- `Ctrl` + wheel zooms around the cursor. In Settings, the wheel can instead
+  be dedicated to zooming. Otherwise it pans an oversized image and pages
+  through files when the image already fits.
+- Smooth zoom and a short fade transition keep rapid browsing responsive.
+  Neighbour images are preloaded after a brief pause into a 128 MB Qt pixmap
+  cache whose keys include absolute path, size and modification time.
+- **Auto**, **Smooth (photos)** and **Nearest neighbor (pixel art)** scaling
+  modes are available. Static images can receive deferred high-quality
+  resampling after zooming stops; animated images and very large images stay
+  on the realtime path to bound memory and latency. This is interpolation, not
+  AI super-resolution.
+- GIF and other animated formats use Qt's animation handler when the installed
+  plugin reports animation support.
+
+### Video playback
+
+Qt Multimedia provides playback controls for play/pause, seeking, volume and
+mute. Volume and mute are remembered with the application settings. Switching
+away from a video stops its player, and playback errors are reported in the
+status bar.
+
+### Presentation and customization
+
+Dark and light themes, English and Simplified Chinese labels, a coordinated
+toolbar/menu icon system, fullscreen viewing, idle cursor hiding, rotation and
+remappable shortcuts are built in. Settings are persisted with `QSettings`.
 
 ## Media formats and runtime support
 
-**Images:** FlashView discovers formats from the installed Qt image decoders.
-Common examples include JPEG, PNG, BMP, GIF, WebP, TIFF, SVG and ICO; the exact
-list depends on the installed plugins. Animation playback is enabled when the
-Qt image handler reports animation support.
+The file list is intentionally based on runtime capability rather than a fixed
+extension table. The open-file filter is generated from the same runtime lists.
 
-**Optional formats:** APNG, AVIF, HEIF/HEIC, JPEG XL and camera RAW require
-compatible Qt 6 image plugins. The dependency installer does not supply all of
-these plugins. Installing a standalone codec library alone does not add a Qt
-image handler; file extensions alone do not guarantee decoding or animation.
+| Media | Runtime path | Practical boundary |
+| --- | --- | --- |
+| Images | `QImageReader::supportedImageFormats()` plus `QMovie::supportedFormats()` | Common installations include JPEG, PNG, BMP, GIF, WebP, TIFF, SVG and ICO. The exact list depends on Qt plugins. |
+| Modern/extended images | The same Qt plugin discovery and content probing | APNG, AVIF, HEIF/HEIC, JPEG XL and camera RAW (for example DNG/CR2/NEF/ARW) appear only when a compatible Qt image handler is installed. |
+| Video containers | Qt Multimedia with the Linux GStreamer backend | MP4, MKV, MOV, AVI and WebM are common examples; a container can still fail when its internal codec is unavailable. |
+| Codec diagnostics | Startup checks for selected image handlers and GStreamer decoder elements | A status-bar warning lists missing modern image formats or common H.264/H.265/VP9/AV1 decoders. |
 
-**Videos:** extensions come from the system MIME database, with content probing
-for additional files. Playback uses Qt Multimedia and, on the Linux setup used
-here, GStreamer. MP4, MKV, MOV, AVI or WebM containers can contain different
-audio and video codecs, so appearing in the file list is not a playback guarantee.
+The dependency script installs GStreamer Base, Good, Bad, Ugly and libav
+plugins. Installing a standalone codec library does not automatically create a
+Qt image handler, and an extension alone is not proof that a file can be
+decoded or played.
 
-At startup, a temporary status-bar message lists missing modern image handlers
-and selected common video decoders. If a file fails to open, check its codec and
-installed plugins, then restart FlashView after installing dependencies:
+## Keyboard and mouse reference
 
-```bash
-./scripts/install-deps.sh
-```
+Navigation and viewing shortcuts can be changed in **Settings → Shortcuts**.
+The table shows the defaults:
 
-## Keyboard & mouse
-
-Common defaults are listed below. Navigation and viewing shortcuts can be
-customized in **Settings → Shortcuts**; platform-specific Qt bindings may differ.
-Ordinary wheel input pans a scrollable image and pages through files when the
-image fits. General settings can change the wheel to zoom instead.
-
-| Action | Shortcut |
+| Action | Default |
 | --- | --- |
-| Next / previous file | `→` / `←`, mouse wheel, mouse back/forward buttons |
+| Previous / next file | `←` / `→`, wheel when the image fits, mouse back/forward buttons |
 | First / last file | `Home` / `End` |
-| Page through files | `PageDown` / `PageUp` |
-| Zoom in / out | `Ctrl++` / `Ctrl+-`, `Ctrl` + wheel |
-| Fit to window | `F` |
-| Actual size (100%) | `1` (or click the zoom % in the status bar) |
+| Page backward / forward | `PageUp` / `PageDown` |
+| Zoom in / out | `Ctrl++` / `Ctrl+-`, or `Ctrl` + wheel |
+| Fit to window / actual size | `F` / `1` |
 | Rotate left / right | `Ctrl+L` / `Ctrl+R` |
 | Play / pause video | `Space` |
-| Adjust video volume | `Ctrl` + mouse wheel |
+| Adjust video volume | `Ctrl` + wheel |
 | Fullscreen | `F11` |
-| Thumbnail bar | `T` |
-| Delete current file (to trash) | `Delete` |
-| Open file / directory | `Ctrl+O` / `Ctrl+Shift+O` |
+| Show/hide thumbnail bar | `T` |
+| Move current file to trash | `Delete` |
+| Open file / folder | `Ctrl+O` / `Ctrl+Shift+O` |
 | Settings | `Ctrl+,` |
 
-## Development and verification
+## Build, test and deploy
 
 ### Dependencies
 
-- CMake ≥ 3.16, a C++17 compiler
-- Qt 6: Core, Gui, Widgets, Concurrent, Multimedia, MultimediaWidgets,
-  LinguistTools and Test, plus DBus for the optional file manager preview
-  (all provided by `qt6-base-dev` and friends)
+- CMake ≥ 3.16 and a C++17 compiler
+- Qt 6: Core, Gui, Widgets, Concurrent, Multimedia,
+  MultimediaWidgets, LinguistTools and Test
+- Qt DBus for the optional Quick Look service
 - Qt SVG and image-format runtime plugins
-- GStreamer Base, Good, Bad, Ugly and libav plugins (runtime video codecs)
+- GStreamer Base, Good, Bad, Ugly and libav runtime plugins
 
-The dependency script targets Debian/Ubuntu; CI is configured for Ubuntu 22.04,
-24.04 and 26.04. It installs the build requirements and common runtime plugins:
+`scripts/install-deps.sh` targets Debian/Ubuntu and is safe to rerun:
 
 ```bash
-./scripts/install-deps.sh        # interactive
-./scripts/install-deps.sh -y     # non-interactive (CI)
+./scripts/install-deps.sh       # interactive
+./scripts/install-deps.sh -y    # non-interactive / CI
 ```
 
-### Build and test
+### Build and regression test
 
 ```bash
-./scripts/build.sh               # Release build into ./build
+./scripts/build.sh               # Release build in ./build
 ./scripts/build.sh --debug       # Debug build
-```
+./scripts/build.sh --clean       # remove only the selected build directory
 
-For an existing build directory, use CMake directly to retain its generator:
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-### Regenerate the screenshots
+The Qt Test suite covers runtime media recognition, natural sorting, decode
+failures, animated GIFs, fit-without-upscaling, interpolation responsiveness,
+wheel zoom, thumbnails, folder updates, deletion, toolbar semantics and the
+Quick Look D-Bus service when a session bus is available.
 
-The capture test embeds the same translation resources as the application and
-checks the visible menu language. It uses temporary settings and a generated
-sample image. Install a CJK font (for example, `fonts-noto-cjk` on Ubuntu) so
-Chinese labels render correctly, then run:
+GitHub Actions repeats dependency installation, Release compilation, tests,
+an offscreen launch smoke test and a staged install-layout check on Ubuntu
+22.04, 24.04 and 26.04. The workflow is [.github/workflows/build.yml](.github/workflows/build.yml).
+
+### Install and uninstall
+
+The installer builds a Release target, installs the binary, desktop entry and
+icon, and installs the D-Bus service when Quick Look is enabled.
+
+```bash
+./install.sh --prefix ~/.local       # per-user install
+./install.sh                         # default prefix: /usr/local
+./install.sh --deps --prefix ~/.local
+./install.sh --uninstall --prefix ~/.local
+```
+
+Use the same prefix for uninstall. `--no-previewer` keeps the deployment as a
+plain image/video viewer. The desktop entry registers the common image/video
+MIME types; runtime discovery remains the source of truth for folder browsing.
+
+### Reproducible documentation screenshots
+
+The capture test uses the application's embedded translations and a generated
+sample image, so it does not depend on optional media files. Install a CJK font
+(for example `fonts-noto-cjk` on Ubuntu), build the tests, then run:
 
 ```bash
 QT_QPA_PLATFORM=offscreen QT_SCALE_FACTOR=1 QT_FONT_DPI=96 \
@@ -217,32 +228,27 @@ FLASHVIEW_SCREENSHOT_DIR="$PWD/screenshots" \
 ./build/flashview_tests generateDocumentationScreenshots
 ```
 
-This generates eight 1200 × 800 PNG files named
-`screenshots/flashview-{en,zh}-{dark,light}.png` and
-`screenshots/flashview-{en,zh}-{dark,light}-menu.png`. Each README references only
-its own interface language. Font and Qt versions can affect the exact rendering.
+It regenerates eight 1200 × 800 PNGs:
+`flashview-{en,zh}-{dark,light}.png` and
+`flashview-{en,zh}-{dark,light}-menu.png`. Each README references only its own
+interface language and keeps both themes.
 
-### Continuous integration
+## Repository map
 
-Every push and pull request runs the Qt regression suite, an offscreen launch
-smoke test and an install-layout check on Ubuntu 22.04, 24.04 and 26.04 via
-GitHub Actions — see [.github/workflows/build.yml](.github/workflows/build.yml).
-
-## Project layout
-
-```bash
-src/            C++ sources (MainWindow, ImageViewer, VideoPlayer,
-                ThumbnailBar, ThemeManager, SettingsDialog, and the optional
-                PreviewWindow/PreviewerService pair)
-i18n/           Qt Linguist translations (en, zh)
-resources/      Icons and Qt resource files
-screenshots/    English/Chinese captures in both themes
-scripts/        Dependency installer and build script
-tests/          Qt Test regression suite
-.github/        CI workflows
-CHANGELOG.md    User-visible change history
+```text
+src/            Qt viewer, image/video playback, thumbnails, settings and Quick Look service
+i18n/           Qt Linguist catalogs (English and Simplified Chinese)
+resources/      icon, Qt resource collection and D-Bus service template
+screenshots/    language- and theme-specific documentation captures
+scripts/        Debian/Ubuntu dependency installer and CMake build wrapper
+tests/          Qt Test regression suite and screenshot generator
+.github/        GitHub Actions build/test/install-layout workflow
+CMakeLists.txt  build graph, optional Quick Look switch and install rules
+install.sh      Release build, deployment and uninstall entry point
+CHANGELOG.md    user-visible change history
 ```
 
 ## License
 
-No license file yet — all rights reserved by the author until one is added.
+No license file is included yet. Until one is added, all rights are reserved
+by the author.

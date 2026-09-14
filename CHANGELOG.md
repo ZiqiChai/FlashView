@@ -39,6 +39,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Separated product characteristics (lightweight, fast, beautiful and
+  compatible) from user-facing features such as Quick Look, adaptive scaling,
+  sorting, wheel paging/zoom, thumbnails and image caching.
+- Simplified the README quick-start path to two commands, while keeping complete
+  build, deployment and development instructions for maintainers below it.
+- Reworked the English and Chinese introductions into user-first product copy,
+  then aligned the technical format, dependency, test and deployment sections.
 - Reorganized both READMEs around setup, viewing, format support and development;
   each now includes matching English or Chinese screenshots in both themes.
 - Embedded application translations in the screenshot test and added visible
