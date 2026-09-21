@@ -147,6 +147,8 @@ void PreviewWindow::applyTheme()
     const QString headerBackground = dark ? QStringLiteral("#22222e") : QStringLiteral("#f0f0f4");
     const QString headerText = dark ? QStringLiteral("#d8d8e8") : QStringLiteral("#1f1f2e");
     const QString border = dark ? QStringLiteral("#3a3a4c") : QStringLiteral("#d0d0dc");
+    const QString btnHover = dark ? QStringLiteral("#32323e") : QStringLiteral("#e2e2ea");
+    const QString btnPressed = dark ? QStringLiteral("#3c3c4a") : QStringLiteral("#d4d4de");
 
     setStyleSheet(ThemeManager::instance().themeStyleSheet()
         + QStringLiteral(R"(
@@ -154,9 +156,18 @@ void PreviewWindow::applyTheme()
             QWidget#previewHeader { background-color: %1; border-bottom: 1px solid %3; }
             QLabel#previewTitle { color: %2; font-size: 13px; padding: 0; }
             QWidget#previewHeader QPushButton {
-                padding: 4px 12px; font-size: 12px; min-height: 0;
+                background-color: transparent;
+                color: %2;
+                border: none;
+                border-radius: 6px;
+                padding: 4px 12px;
+                font-size: 12px;
+                font-weight: 400;
+                min-height: 0;
             }
-        )").arg(headerBackground, headerText, border));
+            QWidget#previewHeader QPushButton:hover { background-color: %4; }
+            QWidget#previewHeader QPushButton:pressed { background-color: %5; }
+        )").arg(headerBackground, headerText, border, btnHover, btnPressed));
 }
 
 bool PreviewWindow::showFile(const QString &filePath, const QString &windowHandle)
